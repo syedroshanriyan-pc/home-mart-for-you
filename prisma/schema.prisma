@@ -1,0 +1,334 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String    @id @default(cuid())
+  role         String    @default("CUSTOMER") // CUSTOMER, ADMIN, SUPER_ADMIN, DELIVERY_AGENT, ORDER_MANAGER
+  name         String
+  mobile       String    @unique
+  email        String?   @unique
+  passwordHash String
+  status       String    @default("ACTIVE") // ACTIVE, INACTIVE, BLOCKED
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  addresses                  Address[]
+  orders                     Order[]
+  favorites                  Favorite[]
+  reviews                    Review[]
+  notificationSubscriptions NotificationSubscription[]
+  deliveryProfile            DeliveryAgentProfile?
+  assignedDeliveries         DeliveryAssignment[]       @relation("AgentDeliveries")
+  couponRedemptions          CouponRedemption[]
+  auditLogs                  AuditLog[]                 @relation("ActorAuditLogs")
+}
+
+model Address {
+  id          String   @id @default(cuid())
+  userId      String
+  label       String   @default("Home") // Home, Work, Other
+  addressLine String
+  locality    String
+  city        String   @default("Mulbagal")
+  postalCode  String?
+  latitude    Float
+  longitude   Float
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Category {
+  id           String    @id @default(cuid())
+  name         String
+  slug         String    @unique
+  description  String?
+  imageUrl     String?
+  isActive     Boolean   @default(true)
+  displayOrder Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  products Product[]
+}
+
+model Product {
+  id             String   @id @default(cuid())
+  categoryId     String
+  name           String
+  slug           String   @unique
+  description    String?
+  productType    String   @default("WEIGHT") // WEIGHT, PIECE, FIXED
+  isActive       Boolean  @default(true)
+  isAvailable    Boolean  @default(true) // Manual ON/OFF toggle by Admin
+  imageUrl       String?
+  seoTitle       String?
+  seoDescription String?
+  displayOrder   Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  category             Category             @relation(fields: [categoryId], references: [id])
+  variants             ProductVariant[]
+  customizationGroups  CustomizationGroup[]
+  orderItems           OrderItem[]
+  favorites            Favorite[]
+}
+
+model ProductVariant {
+  id            String   @id @default(cuid())
+  productId     String
+  name          String   // e.g. "500g", "1kg", "4 Pieces"
+  pricingType   String   @default("WEIGHT") // WEIGHT, PIECE, FIXED
+  quantityValue Int      // e.g. 500, 1000
+  quantityUnit  String   @default("g") // g, kg, pc, pack
+  priceMinor    Int      // In paise, e.g. 24000 = ₹240.00
+  isAvailable   Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+}
+
+model CustomizationGroup {
+  id            String   @id @default(cuid())
+  productId     String
+  name          String   // e.g. "Cutting Style", "Cleaning Preference"
+  selectionType String   @default("SINGLE") // SINGLE, MULTIPLE
+  isRequired    Boolean  @default(false)
+  displayOrder  Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  product Product               @relation(fields: [productId], references: [id], onDelete: Cascade)
+  options CustomizationOption[]
+}
+
+model CustomizationOption {
+  id              String   @id @default(cuid())
+  groupId         String
+  name            String   // e.g. "Curry Cut", "Small Pieces", "Skin Removed"
+  priceDeltaMinor Int      @default(0)
+  isActive        Boolean  @default(true)
+  displayOrder    Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  group CustomizationGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+}
+
+model Order {
+  id                     String    @id @default(cuid())
+  orderNumber            String    @unique // e.g. "FC-1001"
+  userId                 String
+  status                 String    @default("PLACED") // PLACED, CONFIRMED, PREPARING, OUT_FOR_DELIVERY, DELIVERED, CANCELLED
+  subtotalMinor          Int
+  discountMinor          Int       @default(0)
+  deliveryFeeMinor       Int       @default(0)
+  codFeeMinor            Int       @default(0)
+  totalMinor             Int
+  deliveryDistanceMeters Int       @default(0)
+  deliveryLatitude       Float
+  deliveryLongitude      Float
+  deliveryAddressSnapshot String   // JSON serialized address object
+  couponId               String?
+  couponCodeSnapshot     String?
+  notes                  String?
+  cancellationReason     String?
+  placedAt               DateTime  @default(now())
+  confirmedAt            DateTime?
+  preparingAt            DateTime?
+  outForDeliveryAt       DateTime?
+  deliveredAt            DateTime?
+  cancelledAt            DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  user               User                @relation(fields: [userId], references: [id])
+  coupon             Coupon?             @relation(fields: [couponId], references: [id])
+  items              OrderItem[]
+  payment            Payment?
+  deliveryAssignment DeliveryAssignment?
+  review             Review?
+  couponRedemptions  CouponRedemption[]
+}
+
+model OrderItem {
+  id                        String   @id @default(cuid())
+  orderId                   String
+  productId                 String
+  variantId                 String
+  productNameSnapshot       String
+  variantNameSnapshot       String
+  quantity                  Int      @default(1)
+  weightGrams               Int?     // For validating minimum qualifying meat weight
+  unitPriceMinor            Int      // Price at time of order
+  lineTotalMinor            Int      // (unitPriceMinor * quantity) + customizations
+  customizationSnapshotJson String?  // JSON serialized selected customizations
+  createdAt                 DateTime @default(now())
+
+  order   Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product        @relation(fields: [productId], references: [id])
+  variant ProductVariant @relation(fields: [variantId], references: [id])
+}
+
+model Payment {
+  id                String   @id @default(cuid())
+  orderId           String   @unique
+  method            String   @default("COD") // COD, UPI, GPAY, PHONEPE, PAYTM
+  status            String   @default("PENDING") // PENDING, COMPLETED, FAILED, REFUNDED
+  amountMinor       Int
+  provider          String   @default("MANUAL_OR_GATEWAY")
+  providerReference String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model DeliveryAgentProfile {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  availabilityStatus String   @default("AVAILABLE") // AVAILABLE, BUSY, OFFLINE
+  lastKnownLat       Float?
+  lastKnownLng       Float?
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model DeliveryAssignment {
+  id            String    @id @default(cuid())
+  orderId       String    @unique
+  agentUserId   String
+  status        String    @default("ASSIGNED") // ASSIGNED, STARTED, DELIVERED, FAILED
+  assignedAt    DateTime  @default(now())
+  startedAt     DateTime?
+  deliveredAt   DateTime?
+  failureReason String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  agent User  @relation("AgentDeliveries", fields: [agentUserId], references: [id])
+}
+
+model Coupon {
+  id                   String    @id @default(cuid())
+  code                 String    @unique
+  type                 String    // FIXED, PERCENTAGE, BUY_X_GET_Y, FREE_DELIVERY, MIN_ORDER_FIXED
+  value                Int       // e.g. 100 for ₹100, 10 for 10%
+  minimumOrderMinor    Int?      // e.g. 49900 for ₹499
+  maximumDiscountMinor Int?
+  buyQuantity          Int?
+  getQuantity          Int?
+  freeDelivery         Boolean   @default(false)
+  usageLimit           Int?
+  perUserLimit         Int?      @default(1)
+  startsAt             DateTime
+  expiresAt            DateTime
+  isActive             Boolean   @default(true)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  orders      Order[]
+  redemptions CouponRedemption[]
+}
+
+model CouponRedemption {
+  id            String   @id @default(cuid())
+  couponId      String
+  userId        String
+  orderId       String
+  discountMinor Int
+  createdAt     DateTime @default(now())
+
+  coupon Coupon @relation(fields: [couponId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+  order  Order  @relation(fields: [orderId], references: [id])
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  userId    String
+  orderId   String   @unique
+  rating    Int      // 1 to 5 stars
+  comment   String?
+  status    String   @default("PUBLISHED") // PENDING, PUBLISHED, HIDDEN
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model NotificationSubscription {
+  id              String   @id @default(cuid())
+  userId          String?
+  provider        String   @default("WEB_PUSH")
+  endpointOrToken String   @unique
+  deviceLabel     String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model NotificationBroadcast {
+  id              String    @id @default(cuid())
+  createdByUserId String
+  title           String
+  message         String
+  targetUrl       String?
+  status          String    @default("SENT") // PENDING, SENT, FAILED
+  recipientCount  Int       @default(0)
+  successCount    Int       @default(0)
+  failureCount    Int       @default(0)
+  createdAt       DateTime  @default(now())
+  completedAt     DateTime?
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  actorUserId  String
+  action       String
+  entityType   String
+  entityId     String
+  metadataJson String?
+  createdAt    DateTime @default(now())
+
+  actor User @relation("ActorAuditLogs", fields: [actorUserId], references: [id])
+}
+
+model SystemSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @default(now()) @updatedAt
+}

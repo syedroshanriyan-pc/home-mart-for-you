@@ -1,0 +1,65 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getSessionUser } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+
+export async function GET(req: NextRequest) {
+  try {
+    const session = await getSessionUser(req);
+    if (!session || (session.role !== "ADMIN" && session.role !== "SUPER_ADMIN")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const categories = await prisma.category.findMany({
+      orderBy: { displayOrder: "asc" },
+      include: {
+        _count: { select: { products: true } },
+      },
+    });
+
+    return NextResponse.json({ categories });
+  } catch (error) {
+    console.error("Admin categories error:", error);
+    return NextResponse.json({ error: "Failed to load categories" }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const session = await getSessionUser(req);
+    if (!session || (session.role !== "ADMIN" && session.role !== "SUPER_ADMIN")) {
+      return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 });
+    }
+
+    const body = await req.json();
+    const { name, slug, description, imageUrl, displayOrder = 0 } = body;
+
+    if (!name || !slug) {
+      return NextResponse.json({ error: "Name and slug are required" }, { status: 400 });
+    }
+
+    const category = await prisma.category.create({
+      data: {
+        name,
+        slug: slug.trim().toLowerCase(),
+        description,
+        imageUrl: imageUrl || "https://images.unsplash.com/photo-1587593810167-a84920ea0781?auto=format&fit=crop&w=600&q=80",
+        displayOrder: parseInt(displayOrder, 10) || 0,
+      },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        actorUserId: session.id,
+        action: "CATEGORY_CREATED",
+        entityType: "CATEGORY",
+        entityId: category.id,
+        metadataJson: JSON.stringify({ name: category.name }),
+      },
+    });
+
+    return NextResponse.json({ success: true, category });
+  } catch (error: any) {
+    console.error("Category creation error:", error);
+    return NextResponse.json({ error: "Failed to create category. " + (error?.message || "") }, { status: 500 });
+  }
+}

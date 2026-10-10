@@ -1,0 +1,241 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+import { Logo } from "@/components/ui/Logo";
+import {
+  LayoutDashboard,
+  ShoppingBag,
+  Bike,
+  Package,
+  Layers,
+  CheckCircle2,
+  DollarSign,
+  Tag,
+  Users,
+  Star,
+  Bell,
+  BarChart3,
+  PieChart,
+  Settings,
+  History,
+  LogOut,
+  Menu,
+  X,
+  ExternalLink,
+} from "lucide-react";
+
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { user, loading, logout } = useAuth();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login?redirect=/admin");
+    }
+  }, [user, loading, router]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-charcoal-700 text-cream-100 text-xs font-mono">
+        Verifying administrative authorization...
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
+  if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-cream-100 px-4 text-center">
+        <div className="max-w-md bg-white p-8 rounded-3xl border border-cream-300 shadow-card space-y-4">
+          <div className="w-12 h-12 rounded-2xl bg-crimson-100 text-crimson-600 flex items-center justify-center mx-auto">
+            <LogOut className="w-6 h-6" />
+          </div>
+          <h2 className="text-xl font-serif font-bold text-charcoal-800">
+            Access Restricted
+          </h2>
+          <p className="text-xs text-charcoal-500 leading-relaxed">
+            The Operations Portal requires administrative clearance. Your current account ({user.mobile}) is authorized as a <strong>{user.role}</strong>.
+          </p>
+          <div className="pt-2 flex flex-col sm:flex-row gap-2 justify-center">
+            <Link
+              href="/"
+              className="px-5 py-2.5 bg-charcoal-700 hover:bg-charcoal-800 text-cream-50 text-xs font-semibold rounded-xl transition"
+            >
+              Return to Storefront
+            </Link>
+            <button
+              onClick={() => logout()}
+              className="px-5 py-2.5 bg-cream-200 hover:bg-cream-300 text-charcoal-700 text-xs font-semibold rounded-xl transition"
+            >
+              Sign In as Admin
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const navItems = [
+    { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
+    { label: "Orders", href: "/admin/orders", icon: ShoppingBag },
+    { label: "Delivery Agents", href: "/admin/delivery", icon: Bike },
+    { label: "Products Catalog", href: "/admin/products", icon: Package },
+    { label: "Categories", href: "/admin/categories", icon: Layers },
+    { label: "Inventory Stock", href: "/admin/inventory", icon: CheckCircle2 },
+    { label: "Daily Pricing", href: "/admin/pricing", icon: DollarSign },
+    { label: "Coupons & Offers", href: "/admin/coupons", icon: Tag },
+    { label: "Customers", href: "/admin/customers", icon: Users },
+    { label: "Review Moderation", href: "/admin/reviews", icon: Star },
+    { label: "Broadcast Notifications", href: "/admin/notifications", icon: Bell },
+    { label: "Operational Analytics", href: "/admin/analytics", icon: BarChart3 },
+    { label: "Category Tracking", href: "/admin/analytics/categories", icon: PieChart },
+    { label: "Shop Settings", href: "/admin/settings", icon: Settings },
+    { label: "Audit Logs", href: "/admin/audit", icon: History },
+  ];
+
+  return (
+    <div className="min-h-screen bg-cream-100/60 flex">
+      {/* Desktop Sidebar */}
+      <aside className="hidden lg:flex flex-col w-64 bg-charcoal-600 border-r border-charcoal-500 text-cream-50 flex-shrink-0">
+        {/* Brand Header */}
+        <div className="p-6 border-b border-charcoal-500">
+          <Logo variant="light" size="sm" />
+          <span className="block mt-2 text-[10px] font-mono tracking-widest text-amberGold-300 uppercase">
+            Operations Portal &bull; {user.role}
+          </span>
+        </div>
+
+        {/* Navigation List */}
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto scrollbar-none">
+          {navItems.map((item) => {
+            const isActive =
+              item.href === "/admin"
+                ? pathname === "/admin"
+                : item.href === "/admin/analytics"
+                ? pathname === "/admin/analytics"
+                : pathname.startsWith(item.href);
+            const Icon = item.icon;
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
+                  isActive
+                    ? "bg-amberGold-500 text-charcoal-800 font-semibold shadow-subtle"
+                    : "text-cream-200/80 hover:bg-charcoal-500 hover:text-cream-50"
+                }`}
+              >
+                <Icon className={`w-4 h-4 ${isActive ? "text-charcoal-800" : "text-amberGold-400"}`} />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Footer Actions */}
+        <div className="p-4 border-t border-charcoal-500 space-y-2">
+          <Link
+            href="/"
+            target="_blank"
+            className="flex items-center justify-between px-3 py-2 rounded-xl text-xs text-cream-300 hover:bg-charcoal-500 hover:text-cream-50 transition-colors"
+          >
+            <span>Customer Website</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+          </Link>
+
+          <button
+            onClick={() => {
+              logout();
+              router.push("/login");
+            }}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-red-400 hover:bg-red-950/40 transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Sign Out</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Top Navbar */}
+        <header className="h-16 bg-cream-50 border-b border-cream-200 flex items-center justify-between px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="lg:hidden p-2 rounded-xl text-charcoal-600 hover:bg-cream-100"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <h2 className="font-serif text-sm font-semibold text-charcoal-700 hidden sm:block">
+              Fresh Chicken Operating Center
+            </h2>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <span className="text-xs text-charcoal-500 font-mono">
+              Mulbagal Central Shop
+            </span>
+            <div className="flex items-center gap-2 pl-3 border-l border-cream-200">
+              <div className="w-7 h-7 rounded-full bg-charcoal-500 text-cream-50 text-xs font-bold flex items-center justify-center">
+                {user.name.charAt(0).toUpperCase()}
+              </div>
+              <span className="text-xs font-semibold text-charcoal-700 hidden sm:inline">
+                {user.name}
+              </span>
+            </div>
+          </div>
+        </header>
+
+        {/* Mobile Sidebar Modal */}
+        {isSidebarOpen && (
+          <div className="fixed inset-0 z-50 lg:hidden flex">
+            <div
+              className="fixed inset-0 bg-charcoal-700/60 backdrop-blur-sm"
+              onClick={() => setIsSidebarOpen(false)}
+            />
+            <div className="relative w-64 max-w-xs bg-charcoal-600 text-cream-50 flex flex-col p-4 z-10 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-charcoal-500">
+                <Logo variant="light" size="sm" />
+                <button
+                  onClick={() => setIsSidebarOpen(false)}
+                  className="p-1 rounded-lg hover:bg-charcoal-500 text-cream-200"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <nav className="flex-1 space-y-1 overflow-y-auto">
+                {navItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setIsSidebarOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-cream-200 hover:bg-charcoal-500"
+                  >
+                    <item.icon className="w-4 h-4 text-amberGold-400" />
+                    <span>{item.label}</span>
+                  </Link>
+                ))}
+              </nav>
+            </div>
+          </div>
+        )}
+
+        {/* Main View Container */}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+          {children}
+        </main>
+      </div>
+    </div>
+  );
+}

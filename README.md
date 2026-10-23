@@ -14,8 +14,8 @@ Designed to run **100% locally on localhost** with zero external cloud dependenc
 | **Tagline** | Daily Essentials at Wholesale Prices & 100% Farm-Fresh Halal Meats |
 | **Store & Hub Location** | **Srinivaspur Road, Mulbagal, Karnataka – 563131** |
 | **Operational Hours** | **8:30 AM – 7:00 PM** (Monday – Sunday / All 7 Days) |
-| **Direct Contact Phone** | [📞 +91 90355 26638](tel:9035526638) |
-| **Customer Support Email** | [✉️ support.homemart4u@gmail.com](mailto:support.homemart4u@gmail.com) |
+| **Direct Contact Phone** | |
+| **Customer Support Email** |  |
 | **Delivery Radius** | Express hyperlocal delivery within Mulbagal & surrounding areas |
 
 ---
@@ -53,8 +53,7 @@ Open your browser and navigate to:
 
 ## 🔐 Administrative Access & Security
 
-The administrative operations console is accessible at:
-👉 **[`/admin`](http://localhost:3000/admin)**
+The administrative operations console is accessible
 
 | Parameter | Configuration Source | Access Level |
 | :--- | :--- | :--- |
@@ -231,8 +230,8 @@ npx tsc --noEmit
 
 For orders, franchise queries, or customer support:
 - **Visit Us**: Srinivaspur Road, Mulbagal 563131, Karnataka
-- **Call**: [+91 90355 26638](tel:9035526638)
-- **Email**: [support.homemart4u@gmail.com](mailto:support.homemart4u@gmail.com)
+- **Call**: 
+- **Email**: 
 - **Hours**: 8:30 AM – 7:00 PM (Monday – Sunday)
 
 ---

@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";
-import { Phone, Lock, ArrowRight, ShieldCheck } from "lucide-react";
+import { Phone, Lock, ArrowRight, ShieldCheck, Eye, EyeOff } from "lucide-react";
 
 function LoginForm() {
   const router = useRouter();
@@ -16,6 +16,7 @@ function LoginForm() {
   const { login } = useAuth();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -28,12 +29,17 @@ function LoginForm() {
     setIsLoading(false);
 
     if (res.success && res.user) {
-      if (redirectUrl && redirectUrl !== "/") {
-        router.push(redirectUrl);
-      } else if (res.user.role === "ADMIN" || res.user.role === "SUPER_ADMIN") {
-        router.push("/admin");
+      if (res.user.role === "ADMIN" || res.user.role === "SUPER_ADMIN") {
+        // Admins ALWAYS go to /admin unless a specific admin sub-page was requested
+        if (redirectUrl && redirectUrl.startsWith("/admin")) {
+          router.push(redirectUrl);
+        } else {
+          router.push("/admin");
+        }
       } else if (res.user.role === "DELIVERY_AGENT") {
         router.push("/delivery");
+      } else if (redirectUrl && redirectUrl !== "/" && !redirectUrl.startsWith("/admin") && !redirectUrl.startsWith("/delivery")) {
+        router.push(redirectUrl);
       } else {
         router.push("/");
       }
@@ -56,6 +62,13 @@ function LoginForm() {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">
         <div className="bg-cream-50 py-8 px-6 sm:px-10 rounded-3xl border border-cream-200 shadow-card space-y-6">
+          {searchParams.get("deleted") === "true" && (
+            <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>Your account and all associated data have been permanently deleted from the database.</span>
+            </div>
+          )}
+
           {errorMsg && (
             <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700">
               {errorMsg}
@@ -72,7 +85,7 @@ function LoginForm() {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. 9845000003"
+                  placeholder="e.g. 9876543210"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 bg-cream-100 border border-cream-300 rounded-xl text-xs text-charcoal-700 placeholder-charcoal-400 focus:outline-none focus:ring-2 focus:ring-amberGold-400"
@@ -87,13 +100,21 @@ function LoginForm() {
               <div className="relative">
                 <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-charcoal-400" />
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   required
                   placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-cream-100 border border-cream-300 rounded-xl text-xs text-charcoal-700 placeholder-charcoal-400 focus:outline-none focus:ring-2 focus:ring-amberGold-400"
+                  className="w-full pl-10 pr-10 py-2.5 bg-cream-100 border border-cream-300 rounded-xl text-xs text-charcoal-700 placeholder-charcoal-400 focus:outline-none focus:ring-2 focus:ring-amberGold-400"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-charcoal-400 hover:text-charcoal-600 focus:outline-none p-0.5 transition"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 

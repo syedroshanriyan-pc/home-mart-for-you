@@ -83,10 +83,26 @@ export default function DeliveryLayout({ children }: { children: React.ReactNode
 
   return (
     <div className="min-h-screen bg-cream-100 flex flex-col">
+      {/* Administrator Direct Shortcut Bar */}
+      {(user.role === "ADMIN" || user.role === "SUPER_ADMIN") && (
+        <div className="bg-amberGold-400 text-charcoal-900 px-4 py-2 text-xs font-bold flex items-center justify-between shadow-xs sticky top-0 z-50">
+          <span className="flex items-center gap-1.5">
+            <span>⚙️</span>
+            <span>Logged in as Store Administrator. Viewing Delivery Rider Interface.</span>
+          </span>
+          <Link
+            href="/admin"
+            className="px-3 py-1 bg-charcoal-800 hover:bg-black text-white rounded-lg text-xs font-semibold transition"
+          >
+            Go to Admin Dashboard &rarr;
+          </Link>
+        </div>
+      )}
+
       {/* Top Header */}
       <header className="bg-charcoal-700 text-cream-50 sticky top-0 z-40 border-b border-charcoal-600 shadow-subtle">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Link href="/delivery" className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-xl bg-crimson-600 flex items-center justify-center text-white">
                 <Bike className="w-5 h-5" />
@@ -100,6 +116,14 @@ export default function DeliveryLayout({ children }: { children: React.ReactNode
                 </span>
               </div>
             </Link>
+
+            <Link
+              href="/"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-semibold bg-charcoal-600 hover:bg-charcoal-500 text-cream-200 hover:text-white transition"
+              title="Customer Storefront"
+            >
+              <span>Storefront</span>
+            </Link>
           </div>
 
           {/* Right: Duty Switch & Profile */}
@@ -109,7 +133,7 @@ export default function DeliveryLayout({ children }: { children: React.ReactNode
               disabled={toggling}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition shadow-subtle ${
                 isOnline
-                  ? "bg-forest-600 text-white hover:bg-forest-700"
+                  ? "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm"
                   : "bg-charcoal-600 text-cream-300 hover:bg-charcoal-500"
               }`}
             >

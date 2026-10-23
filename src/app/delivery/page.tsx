@@ -63,8 +63,8 @@ export default function DeliveryDashboardPage() {
 
   // Calculate COD cash collected today that needs remittance
   const codCollectedMinor = completedRuns
-    .filter((a) => a.order.paymentMethod === "COD")
-    .reduce((sum, a) => sum + a.order.totalMinor, 0);
+    .filter((a) => a.order?.paymentMethod === "COD")
+    .reduce((sum, a) => sum + (a.order?.totalMinor || 0), 0);
 
   return (
     <div className="space-y-5">
@@ -151,14 +151,21 @@ export default function DeliveryDashboardPage() {
         ) : (
           (tab === "ACTIVE" ? activeRuns : completedRuns).map((assignment) => {
             const ord = assignment.order;
+            if (!ord) return null;
+
             let parsedAddr: any = null;
             try {
-              parsedAddr = JSON.parse(ord.deliveryAddressSnapshot);
+              parsedAddr = typeof ord.deliveryAddressSnapshot === "string" ? JSON.parse(ord.deliveryAddressSnapshot) : ord.deliveryAddressSnapshot;
             } catch (e) {
-              parsedAddr = { line1: ord.deliveryAddressSnapshot };
+              parsedAddr = { addressLine: ord.deliveryAddressSnapshot };
             }
 
             const isCod = ord.paymentMethod === "COD";
+            const displayAddress = parsedAddr?.addressLine || parsedAddr?.line1 || (typeof parsedAddr === "string" ? parsedAddr : "Delivery Address");
+            const displayLocality = parsedAddr?.locality || parsedAddr?.line2 || "";
+            const displayLandmark = parsedAddr?.landmark ? ` (Near: ${parsedAddr.landmark})` : "";
+            const totalWeightGrams = (ord.items || []).reduce((sum, item) => sum + ((item.weightGrams || 0) * (item.quantity || 1)), 0);
+            const totalWeightKg = totalWeightGrams / 1000;
 
             return (
               <div
@@ -199,21 +206,23 @@ export default function DeliveryDashboardPage() {
                   <div className="flex items-start justify-between">
                     <div>
                       <span className="text-xs font-bold text-charcoal-800 block">
-                        {ord.user?.name}
+                        {ord.user?.name || "Customer"}
                       </span>
                       <p className="text-[11px] text-charcoal-500 line-clamp-2 mt-0.5">
-                        {parsedAddr.line1}
-                        {parsedAddr.line2 ? `, ${parsedAddr.line2}` : ""}
-                        {parsedAddr.landmark ? ` (Near: ${parsedAddr.landmark})` : ""}
+                        {displayAddress}
+                        {displayLocality ? `, ${displayLocality}` : ""}
+                        {displayLandmark}
                       </p>
                     </div>
 
-                    <a
-                      href={`tel:${ord.user?.mobile}`}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-forest-50 hover:bg-forest-100 border border-forest-200 text-forest-700 text-xs font-bold rounded-xl transition"
-                    >
-                      <Phone className="w-3.5 h-3.5" /> Call
-                    </a>
+                    {ord.user?.mobile && (
+                      <a
+                        href={`tel:${ord.user.mobile}`}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-forest-50 hover:bg-forest-100 border border-forest-200 text-forest-700 text-xs font-bold rounded-xl transition"
+                      >
+                        <Phone className="w-3.5 h-3.5" /> Call
+                      </a>
+                    )}
                   </div>
 
                   {/* Payment Callout */}
@@ -237,8 +246,7 @@ export default function DeliveryDashboardPage() {
                   <div className="pt-2 border-t border-cream-200 flex items-center justify-between text-xs text-charcoal-500">
                     <span className="flex items-center gap-1">
                       <Package className="w-3.5 h-3.5 text-charcoal-400" />
-                      {ord.items.length} item(s) &bull;{" "}
-                      {ord.items.reduce((sum, item) => sum + (item.weightGrams * item.quantity), 0) / 1000} kg
+                      {(ord.items || []).length} item(s){totalWeightKg > 0 ? ` • ${totalWeightKg.toFixed(2)} kg` : ""}
                     </span>
 
                     <Link

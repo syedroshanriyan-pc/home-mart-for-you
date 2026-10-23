@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
+import { sanitizeText } from "@/lib/security";
 
 export async function POST(
   req: NextRequest,
@@ -15,6 +16,7 @@ export async function POST(
     const { id } = await params;
     const body = await req.json();
     const { rating, comment } = body;
+    const sanitizedComment = comment ? sanitizeText(comment, 500) : null;
 
     const parsedRating = parseInt(rating, 10);
     if (isNaN(parsedRating) || parsedRating < 1 || parsedRating > 5) {
@@ -49,7 +51,7 @@ export async function POST(
         where: { id: order.review.id },
         data: {
           rating: parsedRating,
-          comment: comment ? comment.trim() : null,
+          comment: sanitizedComment,
         },
       });
       return NextResponse.json({ success: true, review: updated });
@@ -60,7 +62,7 @@ export async function POST(
         userId: session.id,
         orderId: order.id,
         rating: parsedRating,
-        comment: comment ? comment.trim() : null,
+        comment: sanitizedComment,
         status: "PUBLISHED",
       },
     });

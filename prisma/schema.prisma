@@ -1,6 +1,7 @@
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {
@@ -51,6 +52,7 @@ model Category {
   id           String    @id @default(cuid())
   name         String
   slug         String    @unique
+  department   String    @default("MEAT") // MEAT, GROCERY
   description  String?
   imageUrl     String?
   isActive     Boolean   @default(true)
@@ -73,6 +75,11 @@ model Product {
   imageUrl       String?
   seoTitle       String?
   seoDescription String?
+  foodType       String   @default("NON_VEG") // VEG, NON_VEG, EGG
+  isHalal        Boolean  @default(false)
+  mrpMinor       Int?     // In paise, e.g. 29500 = ₹295.00
+  savePriceText  String?  // Optional custom save tag override, e.g. "Save ₹45"
+  badgeText      String?  // Optional trust badge, e.g. "Daily Essentials at Wholesale Prices"
   displayOrder   Int      @default(0)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -92,6 +99,7 @@ model ProductVariant {
   quantityValue Int      // e.g. 500, 1000
   quantityUnit  String   @default("g") // g, kg, pc, pack
   priceMinor    Int      // In paise, e.g. 24000 = ₹240.00
+  mrpMinor      Int?     // In paise, e.g. 29500 = ₹295.00
   isAvailable   Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -158,6 +166,7 @@ model Order {
   coupon             Coupon?             @relation(fields: [couponId], references: [id])
   items              OrderItem[]
   payment            Payment?
+  bankTransaction    BankTransaction?
   deliveryAssignment DeliveryAssignment?
   review             Review?
   couponRedemptions  CouponRedemption[]
@@ -190,10 +199,16 @@ model Payment {
   amountMinor       Int
   provider          String   @default("MANUAL_OR_GATEWAY")
   providerReference String?
+  upiApp            String?  // GPAY, PHONEPE, PAYTM, OTHER
+  upiTxnRef         String?  @unique // Database-level unique constraint: each UTR can be used only once
+  qrPayload         String?  // Dynamic UPI string
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([providerReference])
 }
 
 model DeliveryAgentProfile {
@@ -332,3 +347,25 @@ model SystemSetting {
   description String?
   updatedAt   DateTime @default(now()) @updatedAt
 }
+
+model BankTransaction {
+  id             String    @id @default(cuid())
+  utr            String    @unique // Authentic 12-digit UPI UTR from bank
+  amountMinor    Int       // In paise, e.g. 200 = ₹2.00
+  payeeVpa       String    @default("9844797374@mbk")
+  senderVpa      String?
+  source         String    @default("BANK_STATEMENT") // WEBHOOK, BANK_STATEMENT, ADMIN_MANUAL, SMS_SYNC
+  status         String    @default("UNCLAIMED") // UNCLAIMED, CLAIMED, EXPIRED
+  claimedOrderId String?   @unique // Strictly one order per UTR!
+  claimedAt      DateTime?
+  rawPayload     String?
+  receivedAt     DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  claimedOrder   Order?    @relation(fields: [claimedOrderId], references: [id], onDelete: SetNull)
+
+  @@index([utr])
+  @@index([status])
+}
+

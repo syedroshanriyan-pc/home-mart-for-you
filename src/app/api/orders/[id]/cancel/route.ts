@@ -19,7 +19,7 @@ export async function POST(
 
     const order = await prisma.order.findFirst({
       where: { OR: [{ id }, { orderNumber: id }] },
-      include: { user: true },
+      include: { user: true, payment: true },
     });
 
     if (!order) {
@@ -33,12 +33,32 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Customers may cancel only when PLACED
-    if (isOwner && !isAdmin && order.status !== "PLACED") {
+    // Completely remove / block cancel order option for prepaid orders
+    const isPrepaid = order.payment && (order.payment.method !== "COD" || order.payment.status === "COMPLETED");
+    if (isPrepaid && isOwner && !isAdmin) {
       return NextResponse.json(
-        { error: "Orders can only be cancelled while in 'PLACED' status before kitchen confirmation." },
+        { error: "Online cancellation is strictly not available for prepaid orders. Please contact customer support for assistance." },
         { status: 400 }
       );
+    }
+
+    // Customers may cancel COD orders only within 3 minutes (180 seconds) of placement
+    if (isOwner && !isAdmin) {
+      const placedTimestamp = new Date(order.placedAt).getTime();
+      const secondsElapsed = (Date.now() - placedTimestamp) / 1000;
+      if (secondsElapsed > 180) {
+        return NextResponse.json(
+          { error: "Order cancellation window expired. Orders can only be cancelled within 3 minutes of order confirmation as kitchen prep has commenced." },
+          { status: 400 }
+        );
+      }
+
+      if (order.status !== "PLACED" && order.status !== "CONFIRMED") {
+        return NextResponse.json(
+          { error: "Orders can only be cancelled before kitchen preparation begins." },
+          { status: 400 }
+        );
+      }
     }
 
     if (order.status === "DELIVERED" || order.status === "CANCELLED") {

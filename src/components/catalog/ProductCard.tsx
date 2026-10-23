@@ -5,11 +5,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import { HalalBadge } from "@/components/ui/HalalBadge";
+import { FoodTypeBadge, getProductFoodType } from "@/components/ui/FoodTypeBadge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
-import { Heart, Plus, Check, SlidersHorizontal, AlertCircle } from "lucide-react";
+import { Heart, Plus, Check, SlidersHorizontal, AlertCircle, Sparkles, Clock } from "lucide-react";
 
 export interface ProductVariantData {
   id: string;
@@ -18,6 +19,7 @@ export interface ProductVariantData {
   quantityValue: number;
   quantityUnit: string;
   priceMinor: number;
+  mrpMinor?: number | null;
   isAvailable: boolean;
 }
 
@@ -44,7 +46,12 @@ export interface ProductData {
   productType: string;
   isAvailable: boolean;
   imageUrl?: string | null;
-  category?: { name: string; slug: string };
+  foodType?: string | null;
+  isHalal?: boolean | null;
+  mrpMinor?: number | null;
+  savePriceText?: string | null;
+  badgeText?: string | null;
+  category?: { name: string; slug: string; department?: string };
   variants: ProductVariantData[];
   customizationGroups?: CustomizationGroupData[];
 }
@@ -160,9 +167,21 @@ export const ProductCard: React.FC<{
     setTimeout(() => setAddedAnimation(false), 1200);
   };
 
+  const sellingNum = selectedVariant?.priceMinor ? Math.round(selectedVariant.priceMinor / 100) : 0;
+  const variantMrp = selectedVariant?.mrpMinor ?? product.mrpMinor;
+  const mrpNum = variantMrp ? Math.round(variantMrp / 100) : 0;
+  const savingsRs = mrpNum > sellingNum ? mrpNum - sellingNum : 0;
+  const saveTag = product.savePriceText || (savingsRs > 0 ? `Save ₹${savingsRs}` : null);
+
   const primaryPrice = selectedVariant?.priceMinor
     ? (selectedVariant.priceMinor / 100).toFixed(0)
     : "0";
+
+  const isComingSoon = Boolean(
+    product.badgeText?.toLowerCase().includes("coming soon") ||
+    product.category?.slug === "fish-seafood" ||
+    product.category?.slug === "fresh-mutton"
+  );
 
   return (
     <>
@@ -183,19 +202,28 @@ export const ProductCard: React.FC<{
             </div>
           )}
 
-          {/* Availability & Halal Badges */}
+          {/* Availability & Halal & Save Badges */}
           <div className="absolute top-3 left-3 z-10 flex flex-col gap-1 items-start">
-            {product.isAvailable ? (
-              <Badge variant="inStock" size="sm">
-                In Stock
-              </Badge>
-            ) : (
-              <Badge variant="outOfStock" size="sm">
-                Out of Stock
-              </Badge>
-            )}
-            {(product.category?.slug === "fresh-chicken" || product.category?.slug === "masala-special") && (
-              <HalalBadge size="sm" />
+            <div className="flex items-center gap-1.5 bg-white/95 backdrop-blur-xs p-1 rounded-xl shadow-xs">
+              <FoodTypeBadge type={getProductFoodType(product)} showLabel={false} size="sm" />
+              {isComingSoon ? (
+                <span className="px-2 py-0.5 rounded-lg bg-amber-500 text-charcoal-900 text-[10px] font-black uppercase tracking-wider shadow">
+                  Coming Soon
+                </span>
+              ) : product.isAvailable ? (
+                <Badge variant="inStock" size="sm">
+                  In Stock
+                </Badge>
+              ) : (
+                <Badge variant="outOfStock" size="sm">
+                  Out of Stock
+                </Badge>
+              )}
+            </div>
+            {saveTag && (
+              <span className="px-2 py-0.5 rounded-md bg-emerald-600 text-white text-[9px] font-black uppercase tracking-wider shadow">
+                {saveTag}
+              </span>
             )}
           </div>
 
@@ -227,6 +255,9 @@ export const ProductCard: React.FC<{
         {/* Content & Pricing */}
         <div className="p-4 sm:p-5 flex flex-col flex-1 justify-between">
           <div>
+            <div className="flex items-center gap-1.5 mb-1">
+              <FoodTypeBadge type={getProductFoodType(product)} showLabel={true} size="sm" />
+            </div>
             <Link href={`/product/${product.slug}`}>
               <h3 className="font-serif text-base sm:text-lg font-medium text-charcoal-600 group-hover:text-amberGold-600 transition-colors line-clamp-1">
                 {product.name}
@@ -237,6 +268,20 @@ export const ProductCard: React.FC<{
                 {product.description}
               </p>
             )}
+
+            {/* Tag/Badge: Halal for meat, Daily Essentials at Wholesale Prices for groceries */}
+            {Boolean(product.isHalal ?? (product.category?.slug === "fresh-chicken" || product.category?.slug === "masala-special")) ? (
+              <div className="mt-2">
+                <HalalBadge size="sm" variant="outline" />
+              </div>
+            ) : (
+              <div className="mt-2">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs">
+                  <Sparkles className="w-2.5 h-2.5 text-emerald-600 flex-shrink-0" />
+                  <span>{product.badgeText || "Daily Essentials at Wholesale Prices"}</span>
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="mt-4 pt-3 border-t border-cream-200 flex items-center justify-between gap-2">
@@ -244,13 +289,20 @@ export const ProductCard: React.FC<{
               <span className="text-[10px] uppercase font-semibold text-charcoal-400 block tracking-wider">
                 {selectedVariant?.name || "Today's Price"}
               </span>
-              <div className="flex items-baseline gap-1">
+              <div className="flex items-baseline gap-1.5">
                 <span className="text-lg font-serif font-bold text-charcoal-700">
                   ₹{primaryPrice}
                 </span>
-                <span className="text-xs text-charcoal-400">
-                  / {selectedVariant?.quantityUnit === "g" ? `${selectedVariant.quantityValue}g` : selectedVariant?.name}
-                </span>
+                {mrpNum > sellingNum && (
+                  <span className="text-xs text-charcoal-400 line-through">
+                    ₹{mrpNum}
+                  </span>
+                )}
+                {selectedVariant && (
+                  <span className="text-xs text-charcoal-400">
+                    / {selectedVariant.quantityUnit === "g" ? `${selectedVariant.quantityValue}g` : selectedVariant.name}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -273,6 +325,16 @@ export const ProductCard: React.FC<{
                     <span>Add</span>
                   </>
                 )}
+              </Button>
+            ) : isComingSoon ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled
+                className="min-w-[95px] border-amber-300 bg-amber-50 text-amber-800 font-bold opacity-90 cursor-not-allowed text-[11px]"
+              >
+                <Clock className="w-3 h-3 mr-1 inline text-amber-600" />
+                Coming Soon
               </Button>
             ) : (
               <Button variant="secondary" size="sm" disabled className="min-w-[80px]">
@@ -348,9 +410,9 @@ export const ProductCard: React.FC<{
                           : "border-cream-200 hover:border-cream-300 bg-cream-50 text-charcoal-600"
                       }`}
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-1 min-w-0 pr-2">
                         <div
-                          className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                          className={`w-4 h-4 rounded-full border flex-shrink-0 flex items-center justify-center ${
                             isSelected
                               ? "border-amberGold-500 bg-amberGold-500 text-cream-50"
                               : "border-cream-300"
@@ -358,10 +420,10 @@ export const ProductCard: React.FC<{
                         >
                           {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-cream-50" />}
                         </div>
-                        <span>{opt.name}</span>
+                        <span className="leading-snug break-words">{opt.name}</span>
                       </div>
                       {opt.priceDeltaMinor > 0 && (
-                        <span className="text-amberGold-600 font-semibold">
+                        <span className="text-amberGold-600 font-semibold flex-shrink-0">
                           +₹{(opt.priceDeltaMinor / 100).toFixed(0)}
                         </span>
                       )}

@@ -22,10 +22,11 @@ export async function GET(req: NextRequest) {
       where.isAvailable = true;
     }
 
-    if (search) {
+    if (search && search.trim()) {
+      const sanitizedSearch = search.trim().slice(0, 100);
       where.OR = [
-        { name: { contains: search } },
-        { description: { contains: search } },
+        { name: { contains: sanitizedSearch, mode: "insensitive" } },
+        { description: { contains: sanitizedSearch, mode: "insensitive" } },
       ];
     }
 
@@ -34,7 +35,7 @@ export async function GET(req: NextRequest) {
       orderBy: { displayOrder: "asc" },
       include: {
         category: {
-          select: { id: true, name: true, slug: true },
+          select: { id: true, name: true, slug: true, department: true },
         },
         variants: {
           where: { isAvailable: true },

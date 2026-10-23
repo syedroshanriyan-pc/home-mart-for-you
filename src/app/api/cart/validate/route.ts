@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getSessionUser(req);
     const body = await req.json();
-    const { items = [], addressId, coordinates, couponCode, paymentMethod = "COD" } = body;
+    const { items = [], addressId, coordinates, couponCode, paymentMethod = "ONLINE" } = body;
 
     const errors: string[] = [];
     const itemDetails: any[] = [];
@@ -23,6 +23,13 @@ export async function POST(req: NextRequest) {
 
     // 1. Revalidate every item against database current prices and stock
     for (const item of items) {
+      const parsedQty = typeof item.quantity === "number" ? item.quantity : parseInt(String(item.quantity || ""), 10);
+      if (!Number.isInteger(parsedQty) || parsedQty < 1 || parsedQty > 50) {
+        errors.push(`Invalid quantity for requested item. Quantity must be between 1 and 50.`);
+        continue;
+      }
+      const itemQuantity = parsedQty;
+
       const variant = await prisma.productVariant.findUnique({
         where: { id: item.variantId },
         include: {
@@ -63,7 +70,7 @@ export async function POST(req: NextRequest) {
       }
 
       const unitPriceMinor = variant.priceMinor + customizationTotalDelta;
-      const lineTotalMinor = unitPriceMinor * item.quantity;
+      const lineTotalMinor = unitPriceMinor * itemQuantity;
       subtotalMinor += lineTotalMinor;
 
       // Check if product is qualifying meat (category is Fresh Chicken or Masala & Special)
@@ -78,7 +85,7 @@ export async function POST(req: NextRequest) {
       qualifyingItems.push({
         isQualifyingMeat: isChickenCategory,
         weightGrams,
-        quantity: item.quantity,
+        quantity: itemQuantity,
       });
 
       itemDetails.push({
@@ -86,7 +93,7 @@ export async function POST(req: NextRequest) {
         variantId: variant.id,
         productName: variant.product.name,
         variantName: variant.name,
-        quantity: item.quantity,
+        quantity: itemQuantity,
         unitPriceMinor,
         lineTotalMinor,
         isQualifyingMeat: isChickenCategory,
@@ -119,7 +126,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (targetCoords?.lat && targetCoords?.lng) {
+    if (targetCoords?.lat != null && targetCoords?.lng != null) {
       // Get shop coordinates from settings or default
       const shopLatSetting = await prisma.systemSetting.findUnique({ where: { key: "SHOP_LAT" } });
       const shopLngSetting = await prisma.systemSetting.findUnique({ where: { key: "SHOP_LNG" } });
@@ -129,14 +136,19 @@ export async function POST(req: NextRequest) {
         lng: shopLngSetting ? parseFloat(shopLngSetting.value) : DEFAULT_SHOP_COORDINATES.lng,
       };
 
-      deliveryDistanceMeters = calculateDistanceMeters(
-        shopCoords.lat,
-        shopCoords.lng,
-        parseFloat(targetCoords.lat),
-        parseFloat(targetCoords.lng)
-      );
+      const targetLat = parseFloat(String(targetCoords.lat));
+      const targetLng = parseFloat(String(targetCoords.lng));
 
-      deliveryFeeMinor = calculateDeliveryFeePaise(deliveryDistanceMeters);
+      if (!isNaN(targetLat) && !isNaN(targetLng)) {
+        deliveryDistanceMeters = calculateDistanceMeters(
+          shopCoords.lat,
+          shopCoords.lng,
+          targetLat,
+          targetLng
+        );
+
+        deliveryFeeMinor = calculateDeliveryFeePaise(deliveryDistanceMeters);
+      }
     }
 
     // 4. Validate Coupon

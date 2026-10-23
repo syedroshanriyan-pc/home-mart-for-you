@@ -93,7 +93,7 @@ export default function AdminAnalyticsPage() {
               {formatCurrency(metrics.todaySalesMinor)}
             </span>
             <span className="text-[10px] text-forest-600 font-semibold mt-1 inline-flex items-center gap-1">
-              <TrendingUp className="w-3 h-3" /> Live Mandi Settled
+              <TrendingUp className="w-3 h-3" /> Live discounted Settled
             </span>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-amberGold-100 text-amberGold-700 flex items-center justify-center">

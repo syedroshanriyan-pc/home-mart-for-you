@@ -30,11 +30,12 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { settings = {} } = body; // key-value map
 
-    for (const [key, value] of Object.entries(settings)) {
-      if (typeof value === "string") {
+    for (const [key, rawValue] of Object.entries(settings)) {
+      if (rawValue !== null && rawValue !== undefined && typeof key === "string" && key.trim()) {
+        const value = String(rawValue).trim();
         await prisma.systemSetting.upsert({
-          where: { key },
-          create: { key, value },
+          where: { key: key.trim() },
+          create: { key: key.trim(), value },
           update: { value, updatedAt: new Date() },
         });
       }

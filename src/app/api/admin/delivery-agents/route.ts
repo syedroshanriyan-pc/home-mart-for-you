@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser, hashPassword } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sanitizeMobile, sanitizeText, sanitizeEmail } from "@/lib/security";
 
 export async function GET(req: NextRequest) {
   try {
@@ -51,12 +52,19 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { name, mobile, email, password } = body;
 
-    if (!name || !mobile || !password) {
-      return NextResponse.json({ error: "Name, mobile, and password are required" }, { status: 400 });
+    const sanitizedMobile = sanitizeMobile(mobile);
+    const sanitizedName = sanitizeText(name, 100);
+    const sanitizedEmail = email ? sanitizeEmail(email) : null;
+
+    if (!sanitizedName || !sanitizedMobile || !password || String(password).length < 6) {
+      return NextResponse.json(
+        { error: "Valid name, 10-digit mobile number, and password (min 6 characters) are required." },
+        { status: 400 }
+      );
     }
 
     const existing = await prisma.user.findFirst({
-      where: { OR: [{ mobile }, email ? { email } : { mobile }] },
+      where: { OR: [{ mobile: sanitizedMobile }, ...(sanitizedEmail ? [{ email: sanitizedEmail }] : [])] },
     });
 
     if (existing) {
@@ -67,9 +75,9 @@ export async function POST(req: NextRequest) {
 
     const agent = await prisma.user.create({
       data: {
-        name,
-        mobile,
-        email: email || null,
+        name: sanitizedName,
+        mobile: sanitizedMobile,
+        email: sanitizedEmail,
         passwordHash,
         role: "DELIVERY_AGENT",
         status: "ACTIVE",
@@ -93,9 +101,10 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ success: true, agent });
+    const { passwordHash: _, ...safeAgent } = agent;
+    return NextResponse.json({ success: true, agent: safeAgent });
   } catch (error: any) {
     console.error("Create agent error:", error);
-    return NextResponse.json({ error: "Failed to add delivery agent. " + (error?.message || "") }, { status: 500 });
+    return NextResponse.json({ error: "Failed to add delivery agent. Please verify your inputs and try again." }, { status: 500 });
   }
 }

@@ -9,12 +9,24 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 });
     }
 
+    const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
+
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
 
-    // 1. Orders today
+    const activeOrderCondition = {
+      OR: [
+        { payment: { method: "COD" } },
+        { payment: { status: "COMPLETED" } },
+      ],
+    };
+
+    // 1. Orders today (excluding unpaid online checkouts)
     const ordersToday = await prisma.order.findMany({
-      where: { createdAt: { gte: startOfToday } },
+      where: {
+        createdAt: { gte: startOfToday },
+        ...activeOrderCondition,
+      },
       select: { totalMinor: true, status: true, placedAt: true, id: true, orderNumber: true },
     });
 
@@ -25,9 +37,33 @@ export async function GET(req: NextRequest) {
 
     const aovMinor = todayOrderCount > 0 ? Math.round(todaySalesMinor / todayOrderCount) : 0;
 
-    // 2. Global Status Breakdown
+    // 2. Past 2-day orders and payment breakdown (excluding unpaid online checkouts)
+    const past2DaysOrders = await prisma.order.findMany({
+      where: {
+        createdAt: { gte: twoDaysAgo },
+        ...activeOrderCondition,
+      },
+      include: { payment: true },
+    });
+
+    let twoDaysSuccessPayments = 0;
+    let twoDaysPendingPayments = 0;
+    let twoDaysFailedPayments = 0;
+
+    past2DaysOrders.forEach((o) => {
+      const pStatus = o.payment?.status;
+      if (pStatus === "COMPLETED") twoDaysSuccessPayments++;
+      else if (pStatus === "FAILED") twoDaysFailedPayments++;
+      else twoDaysPendingPayments++;
+    });
+
+    // 3. Status Breakdown for the past 2 days
     const statusCounts = await prisma.order.groupBy({
       by: ["status"],
+      where: {
+        createdAt: { gte: twoDaysAgo },
+        ...activeOrderCondition,
+      },
       _count: { id: true },
     });
 
@@ -44,12 +80,13 @@ export async function GET(req: NextRequest) {
       statusMap[s.status] = s._count.id;
     });
 
-    // 3. Operational Alerts
-    // Unassigned deliveries: status in CONFIRMED or PREPARING and no delivery assignment
+    // 4. Operational Alerts
     const unassignedOrders = await prisma.order.findMany({
       where: {
         status: { in: ["CONFIRMED", "PREPARING"] },
         deliveryAssignment: null,
+        createdAt: { gte: twoDaysAgo },
+        ...activeOrderCondition,
       },
       include: { user: { select: { name: true, mobile: true } } },
       take: 5,
@@ -61,24 +98,31 @@ export async function GET(req: NextRequest) {
       select: { id: true, name: true, slug: true, category: { select: { name: true } } },
     });
 
-    // Orders approaching 20-minute delivery target (placed > 15 mins ago and not delivered/cancelled)
+    // Orders approaching 20-minute delivery target
     const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
     const targetAtRiskOrders = await prisma.order.findMany({
       where: {
         status: { in: ["PLACED", "CONFIRMED", "PREPARING", "OUT_FOR_DELIVERY"] },
         placedAt: { lte: fifteenMinutesAgo },
+        createdAt: { gte: twoDaysAgo },
+        ...activeOrderCondition,
       },
       select: { id: true, orderNumber: true, status: true, placedAt: true, totalMinor: true },
       take: 5,
     });
 
-    // Recent 10 orders for dashboard table
+    // Recent orders for dashboard table
     const recentOrders = await prisma.order.findMany({
+      where: {
+        createdAt: { gte: twoDaysAgo },
+        ...activeOrderCondition,
+      },
       take: 10,
       orderBy: { createdAt: "desc" },
       include: {
         user: { select: { name: true, mobile: true } },
         items: true,
+        payment: true,
         deliveryAssignment: {
           include: { agent: { select: { name: true } } },
         },
@@ -91,6 +135,10 @@ export async function GET(req: NextRequest) {
         todayOrderCount,
         aovMinor,
         statusMap,
+        past2DaysTotal: past2DaysOrders.length,
+        twoDaysSuccessPayments,
+        twoDaysPendingPayments,
+        twoDaysFailedPayments,
       },
       alerts: {
         unassignedOrders,

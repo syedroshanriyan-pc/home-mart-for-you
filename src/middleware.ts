@@ -3,37 +3,100 @@ import { NextRequest, NextResponse } from "next/server";
 export const AUTH_COOKIE_NAME = "fc_token";
 
 /**
- * Lightweight JWT payload decoder safe for Edge middleware runtime.
+ * Cryptographic HMAC-SHA256 JWT verification using Web Crypto API for Edge runtime.
  */
-function parseJwtPayload(token: string): { id?: string; role?: string } | null {
+async function verifyJwtInEdge(
+  token: string,
+  secretStr: string
+): Promise<{ id?: string; role?: string } | null> {
   try {
     const parts = token.split(".");
-    if (parts.length < 2) return null;
-    const base64Url = parts[1];
-    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    if (parts.length !== 3) return null;
+    const [headerB64, payloadB64, signatureB64] = parts;
+
+    // Convert secret string to key
+    const encoder = new TextEncoder();
+    const keyData = encoder.encode(secretStr);
+    const key = await crypto.subtle.importKey(
+      "raw",
+      keyData,
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["verify"]
+    );
+
+    // Convert base64url signature to byte buffer
+    const sigBase64 = signatureB64.replace(/-/g, "+").replace(/_/g, "/");
+    const rawSig = atob(sigBase64.padEnd(sigBase64.length + ((4 - (sigBase64.length % 4)) % 4), "="));
+    const sigBytes = new Uint8Array(rawSig.length);
+    for (let i = 0; i < rawSig.length; i++) {
+      sigBytes[i] = rawSig.charCodeAt(i);
+    }
+
+    const dataBytes = encoder.encode(`${headerB64}.${payloadB64}`);
+    const isValid = await crypto.subtle.verify("HMAC", key, sigBytes, dataBytes);
+    if (!isValid) return null;
+
+    // Decode and validate payload
+    const payloadBase64 = payloadB64.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = payloadBase64.padEnd(payloadBase64.length + ((4 - (payloadBase64.length % 4)) % 4), "=");
     const jsonPayload = decodeURIComponent(
-      atob(base64)
+      atob(padded)
         .split("")
         .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
         .join("")
     );
-    return JSON.parse(jsonPayload);
+    const payload = JSON.parse(jsonPayload);
+
+    // Check expiration if present
+    if (payload.exp && typeof payload.exp === "number") {
+      if (payload.exp * 1000 < Date.now()) return null;
+    }
+
+    return payload;
   } catch {
     return null;
   }
 }
 
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const origin = req.headers.get("origin") || "";
   const allowedOrigin = process.env.NEXT_PUBLIC_APP_URL || "";
+  const authSecret = process.env.AUTH_SECRET || "fc_dev_super_secret_jwt_key_2026_mulbagal_secure";
+
+  // 0. CSRF Protection for state-changing API endpoints
+  if (
+    pathname.startsWith("/api/") &&
+    ["POST", "PUT", "PATCH", "DELETE"].includes(req.method) &&
+    !pathname.startsWith("/api/payments/webhook") // Webhooks use HMAC signature verification
+  ) {
+    if (origin) {
+      const isAllowedOrigin =
+        origin.startsWith("http://localhost:") ||
+        origin.startsWith("http://127.0.0.1:") ||
+        origin === req.nextUrl.origin ||
+        (allowedOrigin && origin === allowedOrigin);
+      if (!isAllowedOrigin) {
+        return NextResponse.json(
+          { error: "Forbidden: Cross-site request verification failed" },
+          { status: 403 }
+        );
+      }
+    }
+  }
 
   // Handle CORS preflight for API routes
   if (req.method === "OPTIONS" && pathname.startsWith("/api/")) {
     const preflightHeaders = new Headers();
-    const isAllowedOrigin = !origin || origin.startsWith("http://localhost:") || (allowedOrigin && origin === allowedOrigin);
+    const isAllowedOrigin =
+      origin &&
+      (origin.startsWith("http://localhost:") ||
+        origin.startsWith("http://127.0.0.1:") ||
+        origin === req.nextUrl.origin ||
+        (allowedOrigin && origin === allowedOrigin));
     if (isAllowedOrigin) {
-      preflightHeaders.set("Access-Control-Allow-Origin", origin || "*");
+      preflightHeaders.set("Access-Control-Allow-Origin", origin);
       preflightHeaders.set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
       preflightHeaders.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
       preflightHeaders.set("Access-Control-Allow-Credentials", "true");
@@ -42,7 +105,7 @@ export function middleware(req: NextRequest) {
     return new NextResponse(null, { status: 204, headers: preflightHeaders });
   }
 
-  // Token retrieval (cookie or Bearer header)
+  // Cryptographically verified token retrieval (cookie or Bearer header)
   let token = req.cookies.get(AUTH_COOKIE_NAME)?.value;
   if (!token) {
     const authHeader = req.headers.get("authorization");
@@ -51,7 +114,7 @@ export function middleware(req: NextRequest) {
     }
   }
 
-  const session = token ? parseJwtPayload(token) : null;
+  const session = token ? await verifyJwtInEdge(token, authSecret) : null;
 
   // 1. API Route Protection: /api/admin/*
   if (pathname.startsWith("/api/admin")) {
@@ -113,17 +176,24 @@ export function middleware(req: NextRequest) {
 
   const response = NextResponse.next();
 
-  // Attach Security Headers
+  // Attach Comprehensive Security Headers
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(self)");
+  response.headers.set("X-XSS-Protection", "1; mode=block");
+  response.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
 
   // Add CORS headers for API routes
   if (pathname.startsWith("/api/")) {
-    const isAllowedOrigin = !origin || origin.startsWith("http://localhost:") || (allowedOrigin && origin === allowedOrigin);
+    const isAllowedOrigin =
+      origin &&
+      (origin.startsWith("http://localhost:") ||
+        origin.startsWith("http://127.0.0.1:") ||
+        origin === req.nextUrl.origin ||
+        (allowedOrigin && origin === allowedOrigin));
     if (isAllowedOrigin) {
-      response.headers.set("Access-Control-Allow-Origin", origin || "*");
+      response.headers.set("Access-Control-Allow-Origin", origin);
       response.headers.set("Access-Control-Allow-Credentials", "true");
     }
   }
@@ -133,10 +203,13 @@ export function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    "/admin/:path*",
-    "/delivery/:path*",
-    "/account/:path*",
-    "/api/admin/:path*",
-    "/api/delivery/:path*",
+    /*
+     * Match all request paths except for:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon)
+     * - manifest.json / icon / web app images
+     */
+    "/((?!_next/static|_next/image|favicon.ico|manifest.json|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

@@ -1,13 +1,50 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
-  <defs>
-    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#E11D48" />
-      <stop offset="100%" stop-color="#9F1239" />
-    </linearGradient>
-  </defs>
-  <rect width="32" height="32" rx="8" fill="url(#grad)" />
-  <path d="M16 6C13.5 6 11.5 8 11.5 10.5C11.5 11.8 12 13 13 13.8V17C10.5 17.5 8.5 19.5 8 22H24C23.5 19.5 21.5 17.5 19 17V13.8C20 13 20.5 11.8 20.5 10.5C20.5 8 18.5 6 16 6Z" fill="#FFFFFF" />
-  <circle cx="16" cy="11" r="2" fill="#E11D48" />
-  <circle cx="23" cy="9" r="4.5" fill="#10B981" stroke="#FFFFFF" stroke-width="1.5" />
-  <path d="M21 9L22.5 10.5L25 7.5" stroke="#FFFFFF" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 140" fill="none">
+  <!-- Circular container for favicon crispness -->
+  <circle cx="80" cy="70" r="68" fill="#FFFBEB" stroke="#B91C1C" stroke-width="4" />
+  
+  <!-- Golden Base Swoosh -->
+  <path d="M 28 108 C 52 124, 92 126, 138 96 C 114 114, 70 114, 38 102 Z" fill="#F59E0B" />
+  
+  <!-- House Roof & Windows -->
+  <path d="M 88 56 L 126 26 L 150 45 V 72 H 138 V 48 L 126 38 L 98 62 Z" fill="#991B1B" />
+  <rect x="110" y="46" width="6" height="6" rx="1" fill="#FBBF24" />
+  <rect x="118" y="46" width="6" height="6" rx="1" fill="#FBBF24" />
+  <rect x="110" y="54" width="6" height="6" rx="1" fill="#FBBF24" />
+  <rect x="118" y="54" width="6" height="6" rx="1" fill="#FBBF24" />
+
+  <!-- Speeding Shopping Cart -->
+  <path d="M 94 68 H 106 M 88 74 H 104 M 92 80 H 106" stroke="#C51111" stroke-width="2.5" stroke-linecap="round" />
+  <path d="M 108 65 H 136 L 131 82 H 112 Z" fill="none" stroke="#C51111" stroke-width="2.6" stroke-linejoin="round" />
+  <path d="M 117 65 V 82 M 126 65 V 82 M 108 73 H 134" stroke="#C51111" stroke-width="2" />
+  <path d="M 136 65 L 140 59" stroke="#C51111" stroke-width="2.6" stroke-linecap="round" />
+  <circle cx="115" cy="87" r="2.8" fill="#C51111" />
+  <circle cx="127" cy="87" r="2.8" fill="#C51111" />
+
+  <!-- Rooster Body / Neck -->
+  <path d="M 30 94 C 30 74, 44 54, 60 44 C 56 54, 54 66, 58 78 C 52 82, 46 88, 40 96 C 36 102, 32 100, 30 94 Z" fill="#B91C1C" />
+  <path d="M 54 46 C 46 58, 42 72, 38 88 C 44 78, 54 70, 64 64 C 60 58, 57 52, 54 46 Z" fill="#DC2626" />
+  
+  <!-- White Feathers & Neck -->
+  <path d="M 60 40 C 60 40, 72 44, 78 52 C 84 60, 84 72, 88 84 C 84 88, 76 96, 68 100 C 72 90, 72 82, 68 76 C 64 84, 58 92, 50 96 C 54 88, 56 80, 54 72 C 48 80, 42 86, 36 90 C 40 76, 46 62, 58 48 Z" fill="#FFFFFF" />
+  <path d="M 64 56 C 68 68, 72 80, 74 92" stroke="#CBD5E1" stroke-width="1.8" stroke-linecap="round" />
+  <path d="M 56 64 C 58 74, 60 84, 58 92" stroke="#CBD5E1" stroke-width="1.8" stroke-linecap="round" />
+
+  <!-- Rooster Head & Face -->
+  <path d="M 60 38 C 64 36, 74 38, 78 44 C 82 50, 78 58, 72 62 C 64 62, 58 52, 60 38 Z" fill="#DC2626" />
+
+  <!-- Rooster Comb -->
+  <path d="M 52 38 C 50 26, 56 16, 66 12 C 68 20, 72 22, 76 18 C 80 14, 86 16, 88 24 C 92 22, 98 26, 96 34 C 94 40, 88 44, 82 46 C 76 38, 64 36, 52 38 Z" fill="#C51111" />
+  <path d="M 56 34 C 54 26, 60 18, 67 15 C 68 22, 73 24, 76 21 C 80 18, 85 20, 86 26 C 82 32, 74 36, 64 36 C 60 36, 58 35, 56 34 Z" fill="#EF4444" />
+
+  <!-- Beak -->
+  <path d="M 78 46 L 96 52 C 92 56, 84 60, 78 58 Z" fill="#F59E0B" />
+  <path d="M 78 46 L 96 52 L 86 54 Z" fill="#FBBF24" />
+
+  <!-- Wattle -->
+  <path d="M 76 58 C 82 58, 88 64, 86 74 C 84 82, 74 84, 70 76 C 68 70, 70 58, 76 58 Z" fill="#DC2626" />
+
+  <!-- Eye -->
+  <circle cx="72" cy="45" r="3.2" fill="#FFFFFF" />
+  <circle cx="72" cy="45" r="2" fill="#1C1917" />
+  <circle cx="71.2" cy="44.2" r="0.7" fill="#FFFFFF" />
 </svg>

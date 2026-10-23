@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json({
-      favorites: favorites.map((f) => f.product),
+      favorites: favorites.map((f) => f.product).filter(Boolean),
     });
   } catch (error) {
     console.error("Error fetching favorites:", error);

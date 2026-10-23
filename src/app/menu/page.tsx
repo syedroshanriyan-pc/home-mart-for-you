@@ -5,8 +5,8 @@ import { MenuClient } from "./MenuClient";
 export const revalidate = 60;
 
 export const metadata = {
-  title: "Fresh Meat & Poultry Menu | 100% Halal Cuts Mulbagal",
-  description: "Browse farm fresh tender chicken, curry cuts, biryani cuts, boneless breasts, desi eggs, and fresh fish. Custom cutting, 100% Halal certified, delivered in 20 minutes in Mulbagal.",
+  title: "Fresh Meat & Daily Groceries Menu | homemart4u Mulbagal",
+  description: "Browse farm fresh tender chicken, curry cuts, biryani cuts, and daily grocery essentials (milk, atta, rice, oils, masalas). Express delivery in 20 minutes in Mulbagal.",
 };
 
 export default async function MenuPage() {
@@ -19,7 +19,7 @@ export default async function MenuPage() {
     where: { isActive: true },
     orderBy: { displayOrder: "asc" },
     include: {
-      category: { select: { name: true, slug: true } },
+      category: { select: { id: true, name: true, slug: true, department: true } },
       variants: { where: { isAvailable: true }, orderBy: { priceMinor: "asc" } },
       customizationGroups: {
         include: { options: { where: { isActive: true } } },
@@ -29,22 +29,24 @@ export default async function MenuPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-      <div className="mb-8">
+      <div className="mb-6">
         <span className="text-xs uppercase font-semibold text-amberGold-600 tracking-wider">
-          Daily Farm Fresh Cuts
+          homemart4u Express Store &bull; Srinivaspur Road, Mulbagal
         </span>
         <h1 className="font-serif text-3xl sm:text-4xl font-medium text-charcoal-700 mt-1">
-          Our Fresh Meat Menu
+          Store Catalog &amp; Menu
         </h1>
         <p className="text-xs text-charcoal-500 mt-1 max-w-xl">
-          All cuts are dressed fresh to order in Mulbagal. Daily market-tested pricing and custom cutting options available.
+          Swipe left/right or tap below to seamlessly switch between our Daily Groceries and Fresh Meat cuts.
         </p>
       </div>
 
-      <MenuClient
-        initialCategories={categories}
-        initialProducts={products as any}
-      />
+      <React.Suspense fallback={<div className="p-8 text-center text-xs text-stone-400">Loading catalog...</div>}>
+        <MenuClient
+          initialCategories={categories}
+          initialProducts={products as any}
+        />
+      </React.Suspense>
     </div>
   );
 }

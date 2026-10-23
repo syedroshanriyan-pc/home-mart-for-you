@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Express Checkout | Fresh Chicken Mulbagal",
-  description: "Complete your order with Cash on Delivery or UPI. Target delivery within 20 minutes across Mulbagal.",
+  title: "Express Checkout | homemart4u Mulbagal",
+  description: "Complete your grocery and meat order with Cash on Delivery or automated UPI. Fast delivery within ~20 minutes across Mulbagal.",
 };
 
 export default function CheckoutLayout({

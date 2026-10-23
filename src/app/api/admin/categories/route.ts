@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, slug, description, imageUrl, displayOrder = 0 } = body;
+    const { name, slug, department = "MEAT", description, imageUrl, displayOrder = 0 } = body;
 
     if (!name || !slug) {
       return NextResponse.json({ error: "Name and slug are required" }, { status: 400 });
@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
       data: {
         name,
         slug: slug.trim().toLowerCase(),
+        department: department === "GROCERY" ? "GROCERY" : "MEAT",
         description,
         imageUrl: imageUrl || "https://images.unsplash.com/photo-1587593810167-a84920ea0781?auto=format&fit=crop&w=600&q=80",
         displayOrder: parseInt(displayOrder, 10) || 0,
@@ -60,6 +61,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, category });
   } catch (error: any) {
     console.error("Category creation error:", error);
-    return NextResponse.json({ error: "Failed to create category. " + (error?.message || "") }, { status: 500 });
+    if (error?.code === "P2002") {
+      return NextResponse.json(
+        { error: "A category with this slug already exists." },
+        { status: 409 }
+      );
+    }
+    return NextResponse.json({ error: "Failed to create category. Please check your inputs and try again." }, { status: 500 });
   }
 }

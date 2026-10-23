@@ -15,7 +15,12 @@ dev.db-journal
 # Environment
 .env*.local
 .env
+.env.example
 
 # OS
 .DS_Store
 Thumbs.db
+
+# TypeScript Build Info Cache
+*.tsbuildinfo
+tsconfig.tsbuildinfo

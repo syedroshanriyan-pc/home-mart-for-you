@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { notificationProvider } from "@/lib/adapters/NotificationProvider";
+import { sanitizeText } from "@/lib/security";
 
 export async function GET(req: NextRequest) {
   try {
@@ -33,7 +34,12 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { title, message, targetUrl } = body;
+    const rawTitle = body.title;
+    const rawMessage = body.message;
+    const targetUrl = body.targetUrl ? sanitizeText(body.targetUrl, 250) : null;
+
+    const title = sanitizeText(rawTitle, 120);
+    const message = sanitizeText(rawMessage, 500);
 
     if (!title || !message) {
       return NextResponse.json(

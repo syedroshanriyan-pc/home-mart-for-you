@@ -70,9 +70,88 @@ export async function POST(req: NextRequest) {
       couponCode,
       paymentMethod = "COD",
       notes,
+      existingOrderId,
+      orderId,
     } = body;
 
     const sanitizedNotes = notes ? sanitizeText(notes, 300) : null;
+
+    // Check if an existing order was already created in this checkout session
+    const checkOrderId = existingOrderId || orderId;
+    if (checkOrderId) {
+      const existingOrder = await prisma.order.findFirst({
+        where: { id: checkOrderId, userId: session.id },
+        include: { payment: true },
+      });
+
+      if (
+        existingOrder &&
+        existingOrder.status === "PLACED" &&
+        existingOrder.payment?.status !== "COMPLETED"
+      ) {
+        if (paymentMethod === "COD") {
+          const codFeeMinor = COD_SURCHARGE_PAISE;
+          const newTotalMinor = Math.max(
+            0,
+            existingOrder.subtotalMinor - existingOrder.discountMinor + existingOrder.deliveryFeeMinor + codFeeMinor
+          );
+
+          const updated = await prisma.$transaction(async (tx) => {
+            const o = await tx.order.update({
+              where: { id: existingOrder.id },
+              data: {
+                codFeeMinor,
+                totalMinor: newTotalMinor,
+                updatedAt: new Date(),
+              },
+            });
+
+            const p = await tx.payment.upsert({
+              where: { orderId: existingOrder.id },
+              update: {
+                method: "COD",
+                provider: "CASH_ON_DELIVERY",
+                status: "PENDING",
+                amountMinor: newTotalMinor,
+                providerReference: `COD_${existingOrder.orderNumber}_${Date.now()}`,
+                updatedAt: new Date(),
+              },
+              create: {
+                orderId: existingOrder.id,
+                method: "COD",
+                provider: "CASH_ON_DELIVERY",
+                status: "PENDING",
+                amountMinor: newTotalMinor,
+                providerReference: `COD_${existingOrder.orderNumber}_${Date.now()}`,
+              },
+            });
+
+            await tx.auditLog.create({
+              data: {
+                actorUserId: session.id,
+                action: "ORDER_SWITCHED_TO_COD_FROM_CHECKOUT",
+                entityType: "ORDER",
+                entityId: existingOrder.id,
+                metadataJson: JSON.stringify({
+                  orderNumber: existingOrder.orderNumber,
+                  reusedExistingOrder: true,
+                  newTotalMinor,
+                }),
+              },
+            });
+
+            return { ...o, payment: p };
+          });
+
+          return NextResponse.json({
+            success: true,
+            order: updated,
+            reusedExistingOrder: true,
+            message: "Existing order updated to COD without duplication.",
+          });
+        }
+      }
+    }
 
     if (!items || items.length === 0) {
       return NextResponse.json({ error: "Your cart is empty." }, { status: 400 });
@@ -85,12 +164,21 @@ export async function POST(req: NextRequest) {
         where: { id: addressId, userId: session.id },
       });
     } else if (customAddress && customAddress.addressLine) {
-      deliveryAddressObj = customAddress;
+      deliveryAddressObj = sanitizeAddress(customAddress);
     }
 
-    if (!deliveryAddressObj || !deliveryAddressObj.latitude || !deliveryAddressObj.longitude) {
+    if (!deliveryAddressObj || deliveryAddressObj.latitude == null || deliveryAddressObj.longitude == null) {
       return NextResponse.json(
         { error: "A valid delivery address in Mulbagal is required." },
+        { status: 400 }
+      );
+    }
+
+    const destLat = parseFloat(String(deliveryAddressObj.latitude));
+    const destLng = parseFloat(String(deliveryAddressObj.longitude));
+    if (isNaN(destLat) || isNaN(destLng)) {
+      return NextResponse.json(
+        { error: "Invalid delivery coordinates." },
         { status: 400 }
       );
     }
@@ -101,6 +189,15 @@ export async function POST(req: NextRequest) {
     const preparedOrderItems: any[] = [];
 
     for (const item of items) {
+      const parsedQty = typeof item.quantity === "number" ? item.quantity : parseInt(String(item.quantity || ""), 10);
+      if (!Number.isInteger(parsedQty) || parsedQty < 1 || parsedQty > 50) {
+        return NextResponse.json(
+          { error: `Invalid quantity for item "${item.variantId || 'cart item'}". Quantity must be a whole number between 1 and 50.` },
+          { status: 400 }
+        );
+      }
+      const itemQuantity = parsedQty;
+
       const variant = await prisma.productVariant.findUnique({
         where: { id: item.variantId },
         include: {
@@ -143,7 +240,7 @@ export async function POST(req: NextRequest) {
       }
 
       const unitPriceMinor = variant.priceMinor + customizationTotalDelta;
-      const lineTotalMinor = unitPriceMinor * item.quantity;
+      const lineTotalMinor = unitPriceMinor * itemQuantity;
       subtotalMinor += lineTotalMinor;
 
       const isChickenCategory =
@@ -158,7 +255,7 @@ export async function POST(req: NextRequest) {
       qualifyingMeatItems.push({
         isQualifyingMeat: isChickenCategory,
         weightGrams,
-        quantity: item.quantity,
+        quantity: itemQuantity,
       });
 
       preparedOrderItems.push({
@@ -166,7 +263,7 @@ export async function POST(req: NextRequest) {
         variantId: variant.id,
         productNameSnapshot: variant.product.name,
         variantNameSnapshot: variant.name,
-        quantity: item.quantity,
+        quantity: itemQuantity,
         weightGrams,
         unitPriceMinor,
         lineTotalMinor,
@@ -201,8 +298,8 @@ export async function POST(req: NextRequest) {
     const deliveryDistanceMeters = calculateDistanceMeters(
       shopCoords.lat,
       shopCoords.lng,
-      parseFloat(deliveryAddressObj.latitude),
-      parseFloat(deliveryAddressObj.longitude)
+      destLat,
+      destLng
     );
 
     const deliveryFeeMinor = calculateDeliveryFeePaise(deliveryDistanceMeters);
@@ -254,21 +351,21 @@ export async function POST(req: NextRequest) {
           codFeeMinor,
           totalMinor,
           deliveryDistanceMeters,
-          deliveryLatitude: parseFloat(deliveryAddressObj.latitude),
-          deliveryLongitude: parseFloat(deliveryAddressObj.longitude),
+          deliveryLatitude: destLat,
+          deliveryLongitude: destLng,
           deliveryAddressSnapshot: JSON.stringify(deliveryAddressObj),
           couponId: validCouponId,
           couponCodeSnapshot,
-          notes: notes || null,
+          notes: sanitizedNotes,
           items: {
             create: preparedOrderItems,
           },
           payment: {
             create: {
               method: paymentMethod,
-              status: paymentMethod === "COD" ? "PENDING" : "COMPLETED",
+              status: "PENDING",
               amountMinor: totalMinor,
-              provider: paymentMethod === "COD" ? "CASH_ON_DELIVERY" : "UPI_PAYMENT",
+              provider: paymentMethod === "COD" ? "CASH_ON_DELIVERY" : "UPI_DYNAMIC_QR",
               providerReference: `${paymentMethod}_${orderNumber}_${Date.now()}`,
             },
           },

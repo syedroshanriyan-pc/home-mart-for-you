@@ -5,9 +5,10 @@ import { Settings, Save, RefreshCw, AlertCircle, CheckCircle2, Store, MapPin, Do
 
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<Record<string, string>>({
-    shop_name: "Fresh Chicken",
-    shop_phone: "+91 98450 12345",
-    shop_address: "Main Bazaar Road, Near Clock Tower, Mulbagal, Karnataka 563131",
+    shop_name: "homemart4u",
+    shop_phone: "+91 90355 26638",
+    shop_address: "Srinivaspur Road, Mulbagal 563131",
+    shop_email: "support.homemart4u@gmail.com",
     shop_latitude: "13.1645",
     shop_longitude: "78.3952",
     store_open_status: "OPEN",

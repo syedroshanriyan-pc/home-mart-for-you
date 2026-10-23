@@ -263,7 +263,7 @@ export default function AdminDeliveryAgentsPage() {
                 maxLength={10}
                 value={form.mobile}
                 onChange={(e) => setForm({ ...form, mobile: e.target.value.replace(/\D/g, "") })}
-                placeholder="9845012345"
+                placeholder="9876543210"
                 className="w-full px-3.5 py-2.5 bg-cream-50 border border-cream-300 rounded-xl text-xs font-mono text-charcoal-800 focus:outline-none focus:border-amberGold-500"
               />
             </div>

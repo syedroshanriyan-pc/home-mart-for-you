@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/Button";
 import { Sparkles, ShieldCheck, CheckCircle2, Heart, Award, ArrowRight } from "lucide-react";
 
 export const metadata = {
-  title: "About Us | Fresh Chicken Mulbagal",
-  description: "Learn about Fresh Chicken's biosecure poultry sourcing, daily artisanal cuts, and zero-chemical freshness philosophy in Mulbagal.",
+  title: "About Us | homemart4u Mulbagal",
+  description: "Learn about homemart4u's biosecure poultry sourcing, daily artisanal cuts, essential groceries, and zero-chemical freshness philosophy in Mulbagal.",
 };
 
 export default function AboutPage() {
@@ -18,10 +18,10 @@ export default function AboutPage() {
           Our Craft & Commitment
         </span>
         <h1 className="font-serif text-3xl sm:text-5xl font-medium text-charcoal-700 leading-tight">
-          Bringing Pure, Unadulterated Fresh Poultry to Mulbagal
+          Bringing Daily Essentials &amp; Pure Fresh Meats to Mulbagal
         </h1>
         <p className="text-xs sm:text-sm text-charcoal-500 leading-relaxed font-light">
-          Founded with a singular mission: to eliminate stagnant chiller meat and provide our community with authentic, farm-fresh tender chicken prepared under the highest standards of culinary hygiene.
+          Founded with a singular mission: to eliminate stagnant chiller meat and provide our community with authentic, farm-fresh tender halal chicken and daily groceries prepared under the highest standards of culinary hygiene.
         </p>
       </div>
 
@@ -41,7 +41,7 @@ export default function AboutPage() {
             Dressed to Order, Never Frozen
           </h2>
           <p className="text-xs sm:text-sm text-charcoal-500 leading-relaxed">
-            Most supermarket chicken undergoes frozen cycles, thawing, and chemical bathing to extend shelf-life. At Fresh Chicken Mulbagal, we operate on a strict daily zero-stock-overnight model.
+            Most supermarket meats undergo frozen cycles, thawing, and chemical bathing to extend shelf-life. At homemart4u Mulbagal, we operate on a strict daily zero-stock-overnight model.
           </p>
           <div className="space-y-3 text-xs text-charcoal-600">
             <div className="flex items-center gap-2.5">

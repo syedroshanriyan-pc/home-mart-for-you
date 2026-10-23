@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";
-import { Phone, User, Lock, MapPin, Navigation, ArrowRight } from "lucide-react";
+import { Phone, User, Lock, MapPin, Navigation, ArrowRight, Eye, EyeOff } from "lucide-react";
 
 function RegisterForm() {
   const router = useRouter();
@@ -18,6 +18,7 @@ function RegisterForm() {
   const [mobile, setMobile] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [addressLine, setAddressLine] = useState("");
   const [locality, setLocality] = useState("Mulbagal Town");
   const [latitude, setLatitude] = useState(13.1645);
@@ -148,7 +149,7 @@ function RegisterForm() {
                   <input
                     type="tel"
                     required
-                    placeholder="98450xxxxx"
+                    placeholder="e.g. 9876543210"
                     value={mobile}
                     onChange={(e) => setMobile(e.target.value)}
                     className="w-full pl-10 pr-4 py-2.5 bg-cream-100 border border-cream-300 rounded-xl text-xs text-charcoal-700 placeholder-charcoal-400 focus:outline-none focus:ring-2 focus:ring-amberGold-400"
@@ -177,13 +178,21 @@ function RegisterForm() {
               <div className="relative">
                 <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-charcoal-400" />
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   required
                   placeholder="At least 6 characters"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-cream-100 border border-cream-300 rounded-xl text-xs text-charcoal-700 placeholder-charcoal-400 focus:outline-none focus:ring-2 focus:ring-amberGold-400"
+                  className="w-full pl-10 pr-10 py-2.5 bg-cream-100 border border-cream-300 rounded-xl text-xs text-charcoal-700 placeholder-charcoal-400 focus:outline-none focus:ring-2 focus:ring-amberGold-400"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-charcoal-400 hover:text-charcoal-600 focus:outline-none p-0.5 transition"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 
@@ -213,6 +222,18 @@ function RegisterForm() {
                 className="w-full px-3.5 py-2 text-xs bg-cream-100 border border-cream-300 rounded-xl text-charcoal-700 placeholder-charcoal-400 focus:outline-none focus:ring-2 focus:ring-amberGold-400"
               />
             </div>
+
+            {/* DPDP Act 2023 Consent & Notice */}
+            <p className="text-[11px] text-charcoal-500 text-center leading-relaxed px-1">
+              By creating an account, you agree to our{" "}
+              <Link href="/terms-and-conditions" className="text-amberGold-600 underline font-medium" target="_blank">
+                Terms
+              </Link>{" "}
+              and consent to the processing of your delivery data under our{" "}
+              <Link href="/privacy-policy" className="text-amberGold-600 underline font-medium" target="_blank">
+                Privacy Policy (DPDP Act)
+              </Link>.
+            </p>
 
             <Button
               type="submit"

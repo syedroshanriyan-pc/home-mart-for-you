@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { ArrowLeft, Home, ShoppingBag, PhoneCall, HelpCircle } from "lucide-react";
 
+export const metadata = {
+  title: "404 - Page Not Found | homemart4u Mulbagal",
+  description: "The page or grocery/meat product you are searching for might have been moved or is currently unavailable.",
+};
+
 export default function NotFound() {
   return (
     <div className="min-h-[75vh] flex items-center justify-center px-4 py-16 bg-gradient-to-b from-stone-50 to-white">
@@ -11,9 +16,9 @@ export default function NotFound() {
         </div>
 
         <h1 className="text-6xl font-black text-stone-900 tracking-tight mb-2">404</h1>
-        <h2 className="text-2xl font-bold text-stone-800 mb-3">Fresh Cut Not Found</h2>
+        <h2 className="text-2xl font-bold text-stone-800 mb-3">Item or Page Not Found</h2>
         <p className="text-stone-600 text-sm md:text-base leading-relaxed mb-8">
-          The page or product cut you are searching for might have been moved, renamed, or is currently unavailable in Mulbagal.
+          The page or grocery/meat item you are searching for might have been moved, renamed, or is currently unavailable in Mulbagal.
         </p>
 
         {/* Quick Action Navigation */}
@@ -30,20 +35,22 @@ export default function NotFound() {
             className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-white border border-stone-200 hover:border-rose-300 text-stone-800 font-semibold shadow-sm hover:bg-rose-50/50 transition-all"
           >
             <ShoppingBag className="w-4 h-4 text-rose-600" />
-            Browse Fresh Cuts
+            Browse Store Catalog
           </Link>
         </div>
 
         {/* Support contact info */}
         <div className="pt-6 border-t border-stone-200">
           <p className="text-xs text-stone-500 mb-2">Need immediate assistance with an order?</p>
-          <a
-            href="tel:+919845012345"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-rose-600 hover:text-rose-700 transition-colors"
-          >
-            <PhoneCall className="w-4 h-4" />
-            Call Store: +91 98450 12345
-          </a>
+          <div className="flex items-center justify-center">
+            <a
+              href="tel:+919035526638"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-rose-600 hover:text-rose-700 transition-colors"
+            >
+              <PhoneCall className="w-4 h-4" />
+              <span>+91 90355 26638</span>
+            </a>
+          </div>
         </div>
       </div>
     </div>

@@ -18,6 +18,8 @@ import {
   Check,
   Send,
   X,
+  CreditCard,
+  XCircle,
 } from "lucide-react";
 
 export default function AdminOrderDetailPage() {
@@ -126,6 +128,28 @@ export default function AdminOrderDetailPage() {
       }
     } catch {
       alert("Error auto-assigning delivery partner");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleUpdatePayment = async (newStatus: "COMPLETED" | "FAILED") => {
+    if (!confirm(`Are you sure you want to mark this payment as ${newStatus}?`)) return;
+    setIsUpdating(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${order.id}/payment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        await fetchOrderData();
+      } else {
+        const err = await res.json();
+        alert(err.error || "Failed to update payment status");
+      }
+    } catch {
+      alert("Error updating payment");
     } finally {
       setIsUpdating(false);
     }
@@ -470,6 +494,102 @@ export default function AdminOrderDetailPage() {
               <span className="font-medium text-charcoal-700 uppercase">
                 {order.payment?.status || "PENDING"}
               </span>
+            </div>
+          </div>
+
+          {/* Payment & Webhook Verification Live Card */}
+          <div className="bg-cream-50 rounded-2xl border border-cream-200 p-5 sm:p-6 shadow-subtle space-y-4">
+            <h3 className="font-serif text-base font-semibold text-charcoal-700 flex items-center gap-2 border-b border-cream-200 pb-3">
+              <CreditCard className="w-4 h-4 text-emerald-600" />
+              <span>Payment &amp; Webhook Status</span>
+            </h3>
+
+            <div className="space-y-3 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-charcoal-500">Current Status:</span>
+                <span
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider ${
+                    order.payment?.status === "COMPLETED"
+                      ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                      : order.payment?.status === "FAILED"
+                      ? "bg-rose-100 text-rose-800 border border-rose-300"
+                      : "bg-amber-100 text-amber-800 border border-amber-300"
+                  }`}
+                >
+                  {order.payment?.status === "COMPLETED" ? (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>SUCCESS / PAID</span>
+                    </>
+                  ) : order.payment?.status === "FAILED" ? (
+                    <>
+                      <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                      <span>FAILED</span>
+                    </>
+                  ) : (
+                    <>
+                      <Clock className="w-3.5 h-3.5 text-amber-600" />
+                      <span>PENDING VERIFICATION</span>
+                    </>
+                  )}
+                </span>
+              </div>
+
+              <div className="p-3 bg-white rounded-xl border border-cream-200 space-y-1.5 font-mono text-[11px]">
+                <div className="flex justify-between">
+                  <span className="text-charcoal-400 font-sans">Payment Method:</span>
+                  <span className="font-bold text-charcoal-700">{order.payment?.method || "COD"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-charcoal-400 font-sans">Payment Channel:</span>
+                  <span className="font-bold text-charcoal-700">Razorpay / homemart4u Official</span>
+                </div>
+                {order.payment?.upiTxnRef && (
+                  <div className="flex justify-between">
+                    <span className="text-charcoal-400 font-sans">Transaction Ref / UTR:</span>
+                    <span className="text-emerald-700 font-bold">{order.payment.upiTxnRef}</span>
+                  </div>
+                )}
+                {order.payment?.providerReference && (
+                  <div className="flex justify-between">
+                    <span className="text-charcoal-400 font-sans">Provider Ref:</span>
+                    <span className="text-charcoal-600">{order.payment.providerReference}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-2 flex flex-col gap-2">
+                {order.payment?.status !== "COMPLETED" ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleUpdatePayment("COMPLETED")}
+                      disabled={isUpdating}
+                      className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition disabled:opacity-60"
+                    >
+                      <Check className="w-4 h-4" />
+                      <span>Mark as Paid &amp; Confirm Order</span>
+                    </button>
+                    {order.payment?.status !== "FAILED" && (
+                      <button
+                        type="button"
+                        onClick={() => handleUpdatePayment("FAILED")}
+                        disabled={isUpdating}
+                        className="w-full py-2 px-3 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl font-semibold text-xs flex items-center justify-center gap-1.5 transition disabled:opacity-60"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        <span>Mark as Failed / Expired</span>
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] text-center font-medium flex items-center justify-center gap-1.5">
+                    <Shield className="w-4 h-4 text-emerald-600" />
+                    <span>Payment locked &amp; confirmed in database</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

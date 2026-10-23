@@ -13,7 +13,7 @@ interface AuditLog {
   actor: {
     name: string;
     role: string;
-    mobile: string;
+    mobile?: string;
   } | null;
 }
 

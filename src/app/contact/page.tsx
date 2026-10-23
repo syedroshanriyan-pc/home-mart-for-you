@@ -28,10 +28,10 @@ export default function ContactPage() {
           Store & Support
         </span>
         <h1 className="font-serif text-3xl sm:text-4xl font-medium text-charcoal-700">
-          Get in Touch with Fresh Chicken
+          Get in Touch with homemart4u
         </h1>
         <p className="text-xs sm:text-sm text-charcoal-500">
-          Have a question about special cuts, bulk catering orders, or delivery service in Mulbagal? We&apos;re here to assist.
+          Have a question about fresh meats, daily groceries, or express delivery service in Mulbagal? We&apos;re here to assist.
         </p>
       </div>
 
@@ -48,7 +48,7 @@ export default function ContactPage() {
                   Storefront Address
                 </h3>
                 <p className="text-xs text-charcoal-500 mt-0.5 leading-relaxed">
-                  Main Bazaar Road, Near Clock Tower, Mulbagal, Karnataka 563131
+                  Srinivaspur Road, Mulbagal 563131
                 </p>
               </div>
             </div>
@@ -61,10 +61,28 @@ export default function ContactPage() {
                 <h3 className="font-serif text-sm font-semibold text-charcoal-700">
                   Phone / WhatsApp
                 </h3>
-                <p className="text-xs text-charcoal-500 mt-0.5">
-                  +91 98450 12345
+                <p className="text-xs text-charcoal-600 mt-0.5 font-medium">
+                  <a href="tel:+919035526638" className="hover:text-amberGold-600 transition">
+                    +91 90355 26638
+                  </a>
                 </p>
-                <p className="text-[11px] text-charcoal-400">Lines open 6:30 AM – 9:00 PM</p>
+                <p className="text-[11px] text-charcoal-400 mt-0.5">Lines open 8:30 AM – 7:00 PM</p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-4">
+              <div className="p-3 rounded-xl bg-cream-100 text-amberGold-600">
+                <Mail className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-serif text-sm font-semibold text-charcoal-700">
+                  Customer Email Support
+                </h3>
+                <p className="text-xs text-charcoal-600 mt-0.5 font-medium">
+                  <a href="mailto:support.homemart4u@gmail.com" className="hover:text-amberGold-600 transition">
+                    support.homemart4u@gmail.com
+                  </a>
+                </p>
               </div>
             </div>
 
@@ -77,7 +95,7 @@ export default function ContactPage() {
                   Business Hours
                 </h3>
                 <p className="text-xs text-charcoal-500 mt-0.5">
-                  Monday &ndash; Sunday: 6:30 AM &ndash; 9:00 PM
+                  Monday &ndash; Sunday: 8:30 AM &ndash; 7:00 PM
                 </p>
                 <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-50 text-emerald-800 border border-emerald-200">
                   Open All 7 Days
@@ -95,6 +113,13 @@ export default function ContactPage() {
           <p className="text-xs text-charcoal-500 mb-6">
             For catering inquiries or feedback, leave your note below.
           </p>
+
+          {submitted && (
+            <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs flex items-center gap-2">
+              <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <span>Thank you! Your message has been sent to our customer care team at Srinivaspur Road.</span>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -119,7 +144,7 @@ export default function ContactPage() {
                 <input
                   type="tel"
                   required
-                  placeholder="98450xxxxx"
+                  placeholder="e.g. 9876543210"
                   value={mobile}
                   onChange={(e) => setMobile(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-cream-100 border border-cream-300 rounded-xl text-xs text-charcoal-700 focus:outline-none focus:ring-2 focus:ring-amberGold-400"

@@ -60,8 +60,12 @@ export function calculateDeliveryFeePaise(
 
 /**
  * Formats minor units (paise) into INR currency string with ₹ symbol.
+ * Guards against undefined, null, or NaN inputs to guarantee zero display exceptions.
  */
-export function formatCurrency(paise: number): string {
+export function formatCurrency(paise: number | undefined | null): string {
+  if (typeof paise !== "number" || isNaN(paise) || !isFinite(paise)) {
+    return "₹0";
+  }
   const rupees = paise / 100;
   return `₹${rupees.toLocaleString("en-IN", {
     minimumFractionDigits: paise % 100 === 0 ? 0 : 2,

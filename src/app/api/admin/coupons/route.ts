@@ -50,16 +50,22 @@ export async function POST(req: NextRequest) {
     const now = new Date();
     const expiresAt = new Date(now.getTime() + parseInt(expiresInDays, 10) * 24 * 60 * 60 * 1000);
 
+    const parsedMin = minimumOrderRupees ? Math.round(parseFloat(minimumOrderRupees) * 100) : null;
+    const minOrderMinor = typeof parsedMin === "number" && !isNaN(parsedMin) ? parsedMin : null;
+
+    const parsedMax = maximumDiscountRupees ? Math.round(parseFloat(maximumDiscountRupees) * 100) : null;
+    const maxDiscountMinor = typeof parsedMax === "number" && !isNaN(parsedMax) ? parsedMax : null;
+
     const coupon = await prisma.coupon.create({
       data: {
         code: code.trim().toUpperCase(),
         type,
         value: parseInt(value, 10) || 0,
-        minimumOrderMinor: minimumOrderRupees ? Math.round(parseFloat(minimumOrderRupees) * 100) : null,
-        maximumDiscountMinor: maximumDiscountRupees ? Math.round(parseFloat(maximumDiscountRupees) * 100) : null,
+        minimumOrderMinor: minOrderMinor,
+        maximumDiscountMinor: maxDiscountMinor,
         freeDelivery: freeDelivery || type === "FREE_DELIVERY",
-        usageLimit: usageLimit ? parseInt(usageLimit, 10) : null,
-        perUserLimit: perUserLimit ? parseInt(perUserLimit, 10) : 1,
+        usageLimit: usageLimit ? parseInt(usageLimit, 10) || null : null,
+        perUserLimit: perUserLimit ? parseInt(perUserLimit, 10) || 1 : 1,
         startsAt: now,
         expiresAt,
         isActive: true,
@@ -79,6 +85,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, coupon });
   } catch (error: any) {
     console.error("Coupon creation error:", error);
-    return NextResponse.json({ error: "Failed to create coupon. " + (error?.message || "") }, { status: 500 });
+    if (error?.code === "P2002") {
+      return NextResponse.json(
+        { error: "A coupon with this code already exists. Please use a unique code." },
+        { status: 409 }
+      );
+    }
+    return NextResponse.json(
+      { error: "Failed to create coupon. Please verify your inputs and try again." },
+      { status: 500 }
+    );
   }
 }

@@ -6,9 +6,10 @@ export async function GET() {
   try {
     const rawSettings = await prisma.systemSetting.findMany();
     const settingsMap: Record<string, string> = {
-      shop_name: "Fresh Chicken",
-      shop_phone: "+91 98450 12345",
-      shop_address: "Main Market Road, Mulbagal, Karnataka 563131",
+      shop_name: "homemart4u",
+      shop_phone: "+91 90355 26638",
+      shop_address: "Srinivaspur Road, Mulbagal 563131",
+      shop_email: "support.homemart4u@gmail.com",
       shop_latitude: String(DEFAULT_SHOP_COORDINATES.lat),
       shop_longitude: String(DEFAULT_SHOP_COORDINATES.lng),
       store_open_status: "OPEN",
@@ -28,9 +29,10 @@ export async function GET() {
     return NextResponse.json(
       {
         settings: {
-          shop_name: "Fresh Chicken",
-          shop_phone: "+91 98450 12345",
-          shop_address: "Main Market Road, Mulbagal, Karnataka 563131",
+          shop_name: "homemart4u",
+          shop_phone: "+91 90355 26638",
+          shop_address: "Srinivaspur Road, Mulbagal 563131",
+          shop_email: "support.homemart4u@gmail.com",
           store_open_status: "OPEN",
         },
       },

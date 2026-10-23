@@ -1,0 +1,84 @@
+"use client";
+
+import React, { useState } from "react";
+import { useAuth } from "@/context/AuthContext";
+import { StorefrontView, StoreProduct } from "./StorefrontView";
+import { LandingBlogView } from "./LandingBlogView";
+import { BookOpen, ShoppingBag, Sparkles } from "lucide-react";
+
+interface HomePageClientControllerProps {
+  products: StoreProduct[];
+  categories: { id: string; name: string; slug: string; department?: string; imageUrl?: string | null }[];
+}
+
+export const HomePageClientController: React.FC<HomePageClientControllerProps> = ({
+  products,
+  categories,
+}) => {
+  const { user, loading } = useAuth();
+  const [guestViewingStore, setGuestViewingStore] = useState(false);
+  const [guestDept, setGuestDept] = useState<"GROCERIES" | "MEAT">("GROCERIES");
+
+  // 1. If user is logged in, immediately show the main Storefront view (no blog/landing page needed)
+  if (user) {
+    return (
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
+        <StorefrontView
+          products={products}
+          categories={categories}
+        />
+      </div>
+    );
+  }
+
+  // 2. If user is NOT logged in:
+  // Show Guest Storefront if user tapped "Shop Groceries & Meat" or "Enter Store"
+  if (guestViewingStore) {
+    return (
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
+        <StorefrontView
+          products={products}
+          categories={categories}
+          initialDepartment={guestDept}
+          onBackToBlog={() => setGuestViewingStore(false)}
+        />
+      </div>
+    );
+  }
+
+  // 3. Otherwise (unauthenticated visitor initial visit), show LandingBlogView
+  return (
+    <div>
+      {/* Quick Visitor Mode Switcher Bar */}
+      <div className="bg-stone-900 border-b border-stone-800 text-stone-300 py-2 px-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-emerald-400" />
+            <span className="font-medium text-stone-200">
+              Welcome to homemart4u Mulbagal
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setGuestDept("GROCERIES");
+              setGuestViewingStore(true);
+            }}
+            className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] shadow-sm transition"
+          >
+            <ShoppingBag className="w-3 h-3" />
+            <span>Open Store Catalog &rarr;</span>
+          </button>
+        </div>
+      </div>
+
+      <LandingBlogView
+        onEnterStore={(dept) => {
+          if (dept) setGuestDept(dept);
+          setGuestViewingStore(true);
+        }}
+      />
+    </div>
+  );
+};

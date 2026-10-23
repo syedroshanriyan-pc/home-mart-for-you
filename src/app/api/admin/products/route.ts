@@ -43,9 +43,15 @@ export async function POST(req: NextRequest) {
       productType = "WEIGHT",
       imageUrl,
       priceMinor,
+      mrpMinor,
+      savePriceText,
+      badgeText,
+      foodType = "NON_VEG",
+      isHalal = false,
       variantName,
       quantityValue = 1000,
       quantityUnit = "g",
+      isAvailable = true,
     } = body;
 
     if (!name || !slug || !categoryId || priceMinor === undefined) {
@@ -55,22 +61,32 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const parsedMrp = mrpMinor !== undefined && mrpMinor !== null && String(mrpMinor).trim() !== ""
+      ? parseInt(String(mrpMinor), 10)
+      : null;
+
     const product = await prisma.product.create({
       data: {
-        name,
+        name: name.trim(),
         slug: slug.trim().toLowerCase(),
         categoryId,
-        description,
+        description: description?.trim() || null,
         productType,
         imageUrl: imageUrl || "https://images.unsplash.com/photo-1587593810167-a84920ea0781?auto=format&fit=crop&w=600&q=80",
-        isAvailable: true,
+        isAvailable: Boolean(isAvailable),
+        foodType: foodType === "VEG" || foodType === "EGG" ? foodType : "NON_VEG",
+        isHalal: Boolean(isHalal),
+        mrpMinor: parsedMrp,
+        savePriceText: savePriceText?.trim() || null,
+        badgeText: badgeText?.trim() || null,
         variants: {
           create: {
             name: variantName || "Standard Pack",
             pricingType: productType,
-            quantityValue: parseInt(quantityValue, 10),
+            quantityValue: parseInt(quantityValue, 10) || 1000,
             quantityUnit,
             priceMinor: parseInt(priceMinor, 10),
+            mrpMinor: parsedMrp,
             isAvailable: true,
           },
         },
@@ -94,8 +110,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, product });
   } catch (error: any) {
     console.error("Product create error:", error);
+    if (error?.code === "P2002") {
+      return NextResponse.json(
+        { error: "A product with this slug already exists. Please choose a unique slug or name." },
+        { status: 409 }
+      );
+    }
     return NextResponse.json(
-      { error: "Failed to create product. " + (error?.message || "") },
+      { error: "Failed to create product. Please verify your inputs and try again." },
       { status: 500 }
     );
   }

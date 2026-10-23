@@ -73,8 +73,7 @@ export default function CartPage() {
   const subtotalRs = validation ? validation.subtotalMinor / 100 : items.reduce((s, i) => s + (i.unitPriceMinor * i.quantity) / 100, 0);
   const discountRs = validation ? validation.discountMinor / 100 : 0;
   const deliveryRs = validation ? validation.deliveryFeeMinor / 100 : 0;
-  const codFeeRs = validation ? validation.codFeeMinor / 100 : 7;
-  const totalRs = validation ? validation.totalMinor / 100 : subtotalRs + deliveryRs + codFeeRs - discountRs;
+  const totalRs = validation ? (validation.totalMinor - validation.codFeeMinor) / 100 : subtotalRs + deliveryRs - discountRs;
 
   const isMinMeatMet = validation ? validation.isMinMeatMet : true;
   const currentMeatGrams = validation ? validation.qualifyingMeatGrams : 0;
@@ -325,15 +324,6 @@ export default function CartPage() {
                 </span>
               </div>
 
-              <div className="flex justify-between text-charcoal-600">
-                <div>
-                  <span>COD Handling Fee</span>
-                  <span className="text-[10px] text-charcoal-400 block">(Applicable for Cash on Delivery)</span>
-                </div>
-                <span className="font-medium text-charcoal-700 font-mono">
-                  ₹{codFeeRs.toFixed(2)}
-                </span>
-              </div>
 
               <div className="pt-3 border-t border-cream-200 flex justify-between items-baseline text-sm">
                 <div>

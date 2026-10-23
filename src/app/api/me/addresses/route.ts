@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sanitizeAddress } from "@/lib/security";
 
 export async function GET(req: NextRequest) {
   try {
@@ -34,9 +35,29 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { label, addressLine, locality, city, postalCode, latitude, longitude, isDefault } = body;
 
-    if (!addressLine || latitude === undefined || longitude === undefined) {
+    const latNum = parseFloat(latitude);
+    const lngNum = parseFloat(longitude);
+
+    if (!addressLine || isNaN(latNum) || isNaN(lngNum)) {
       return NextResponse.json(
-        { error: "Address line, latitude, and longitude are required." },
+        { error: "Address line, latitude, and longitude are required and must be valid numbers." },
+        { status: 400 }
+      );
+    }
+
+    const sanitized = sanitizeAddress({
+      label,
+      addressLine,
+      locality,
+      city,
+      postalCode,
+      latitude: latNum,
+      longitude: lngNum,
+    });
+
+    if (!sanitized || !sanitized.addressLine) {
+      return NextResponse.json(
+        { error: "Valid address line is required." },
         { status: 400 }
       );
     }
@@ -54,14 +75,14 @@ export async function POST(req: NextRequest) {
     const address = await prisma.address.create({
       data: {
         userId: session.id,
-        label: label || "Home",
-        addressLine,
-        locality: locality || "Mulbagal",
-        city: city || "Mulbagal",
-        postalCode: postalCode || "563131",
-        latitude: parseFloat(latitude),
-        longitude: parseFloat(longitude),
-        isDefault: isDefault || count === 0,
+        label: sanitized.label || "Home",
+        addressLine: sanitized.addressLine,
+        locality: sanitized.locality || "Mulbagal",
+        city: sanitized.city || "Mulbagal",
+        postalCode: sanitized.postalCode || "563131",
+        latitude: sanitized.latitude,
+        longitude: sanitized.longitude,
+        isDefault: Boolean(isDefault) || count === 0,
       },
     });
 

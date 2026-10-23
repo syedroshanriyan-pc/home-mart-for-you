@@ -4,14 +4,30 @@ import { AuthProvider } from "@/context/AuthContext";
 import { CartProvider } from "@/context/CartContext";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
+import { PwaRegister } from "@/components/pwa/PwaRegister";
+import { InstallPromptBanner } from "@/components/pwa/InstallPromptBanner";
 
 export const metadata: Metadata = {
-  title: "Fresh Chicken | Premium Online Chicken & Meat Delivery in Mulbagal",
+  title: "homemart4u - Daily Groceries & Fresh Meat | Srinivaspur Road, Mulbagal",
   description:
-    "Order 100% farm fresh chicken online in Mulbagal. Free delivery for first 3km, ~20-minute delivery target, custom curry/biryani cuts, and COD available.",
+    "Order 100% farm fresh chicken & daily groceries online from homemart4u in Mulbagal. Free delivery for first 3km, ~20-minute delivery from Srinivaspur Road, custom curry/biryani cuts, dynamic UPI QR payments, and COD available.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "homemart4u",
+  },
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
   keywords: [
+    "homemart4u",
+    "homemart4u Mulbagal",
     "Fresh Chicken Mulbagal",
-    "Chicken Delivery Mulbagal",
+    "Groceries Mulbagal",
+    "Srinivaspur Road Mulbagal",
     "Fresh Meat Mulbagal",
     "Buy Chicken Online Mulbagal",
     "Farm Fresh Chicken Karnataka",
@@ -19,11 +35,11 @@ export const metadata: Metadata = {
   ],
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
   openGraph: {
-    title: "Fresh Chicken Mulbagal | Farm Fresh Tender Cuts Delivered",
-    description: "Premium fresh chicken delivered to your doorstep in Mulbagal in ~20 minutes. Free delivery up to 3 km.",
+    title: "homemart4u | Groceries & Fresh Meat Mulbagal",
+    description: "Premium fresh chicken and daily groceries delivered to your doorstep in Mulbagal from Srinivaspur Road in ~20 minutes.",
     type: "website",
     locale: "en_IN",
-    siteName: "Fresh Chicken",
+    siteName: "homemart4u",
   },
 };
 
@@ -34,13 +50,13 @@ export default function RootLayout({
 }) {
   const structuredData = {
     "@context": "https://schema.org",
-    "@type": "ButcherShop",
-    name: "Fresh Chicken",
+    "@type": "GroceryStore",
+    name: "homemart4u",
     description:
-      "Premium fresh tender chicken, customizable cuts, farm eggs, and express home delivery in Mulbagal.",
+      "Daily fresh tender chicken, customizable halal cuts, farm eggs, and essential groceries with express delivery in Mulbagal.",
     address: {
       "@type": "PostalAddress",
-      streetAddress: "Main Bazaar Road, Near Clock Tower",
+      streetAddress: "Srinivaspur Road",
       addressLocality: "Mulbagal",
       addressRegion: "Karnataka",
       postalCode: "563131",
@@ -51,8 +67,8 @@ export default function RootLayout({
       latitude: 13.1645,
       longitude: 78.3952,
     },
-    telephone: "+919845012345",
-    openingHours: "Mo-Su 06:30-21:00",
+    telephone: "+919035526638",
+    openingHours: "Mo-Su 08:30-19:00",
     priceRange: "₹₹",
   };
 
@@ -67,9 +83,11 @@ export default function RootLayout({
       <body className="min-h-screen flex flex-col bg-cream-50 text-charcoal-600 antialiased">
         <AuthProvider>
           <CartProvider>
+            <PwaRegister />
             <Navbar />
             <main className="flex-1">{children}</main>
             <Footer />
+            <InstallPromptBanner />
           </CartProvider>
         </AuthProvider>
       </body>

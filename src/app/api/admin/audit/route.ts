@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
       take: 50,
       orderBy: { createdAt: "desc" },
       include: {
-        actor: { select: { id: true, name: true, role: true, mobile: true } },
+        actor: { select: { id: true, name: true, role: true } },
       },
     });
 

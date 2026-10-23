@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { HalalBadge } from "@/components/ui/HalalBadge";
+import { FoodTypeBadge, getProductFoodType } from "@/components/ui/FoodTypeBadge";
 import { useCart } from "@/context/CartContext";
 import {
   Check,
@@ -28,6 +29,12 @@ export const ProductDetailClient: React.FC<{ product: ProductData }> = ({ produc
 
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
+
+  const sellingNum = selectedVariant?.priceMinor ? Math.round(selectedVariant.priceMinor / 100) : 0;
+  const variantMrp = selectedVariant?.mrpMinor ?? product.mrpMinor;
+  const mrpNum = variantMrp ? Math.round(variantMrp / 100) : 0;
+  const savingsRs = mrpNum > sellingNum ? mrpNum - sellingNum : 0;
+  const saveTag = product.savePriceText || (savingsRs > 0 ? `Save ₹${savingsRs}` : null);
 
   // Customizations selection state
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => {
@@ -95,6 +102,12 @@ export const ProductDetailClient: React.FC<{ product: ProductData }> = ({ produc
     ? (selectedVariant.priceMinor + totalDeltaMinor) / 100
     : 0;
 
+  const isComingSoon = Boolean(
+    product.badgeText?.toLowerCase().includes("coming soon") ||
+    product.category?.slug === "fish-seafood" ||
+    product.category?.slug === "fresh-mutton"
+  );
+
   return (
     <div className="space-y-8">
       {/* Breadcrumb Navigation */}
@@ -132,8 +145,16 @@ export const ProductDetailClient: React.FC<{ product: ProductData }> = ({ produc
                 Image Not Available
               </div>
             )}
-            <div className="absolute top-4 left-4">
-              {product.isAvailable ? (
+            <div className="absolute top-4 left-4 flex items-center gap-2">
+              <div className="bg-white/95 backdrop-blur-xs p-1 rounded-xl shadow-xs">
+                <FoodTypeBadge type={getProductFoodType(product)} showLabel={false} size="md" />
+              </div>
+              {isComingSoon ? (
+                <span className="px-3 py-1 rounded-full bg-amber-500 text-charcoal-900 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-sm">
+                  <Clock className="w-3.5 h-3.5 text-charcoal-900" />
+                  Coming Soon to Mulbagal
+                </span>
+              ) : product.isAvailable ? (
                 <Badge variant="inStock" size="md">
                   In Stock &bull; Fresh Today
                 </Badge>
@@ -169,13 +190,26 @@ export const ProductDetailClient: React.FC<{ product: ProductData }> = ({ produc
         {/* Right: Product Details, Variants, Customization, Add to Cart */}
         <div className="lg:col-span-6 space-y-6">
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <FoodTypeBadge type={getProductFoodType(product)} showLabel={true} size="md" />
               {product.category && (
                 <span className="text-xs uppercase font-semibold text-amberGold-600 tracking-wider">
-                  {product.category.name}
+                  &bull; {product.category.name}
                 </span>
               )}
-              {isChicken && <HalalBadge size="sm" />}
+              {Boolean(product.isHalal ?? isChicken) ? (
+                <HalalBadge size="sm" />
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  <Sparkles className="w-3 h-3 text-emerald-600 flex-shrink-0" />
+                  <span>{product.badgeText || "Daily Essentials at Wholesale Prices"}</span>
+                </span>
+              )}
+              {saveTag && (
+                <span className="px-2.5 py-0.5 rounded-md bg-emerald-600 text-white text-[10px] font-black uppercase tracking-wider shadow">
+                  {saveTag}
+                </span>
+              )}
             </div>
             <h1 className="font-serif text-2xl sm:text-3xl font-medium text-charcoal-700 mt-1">
               {product.name}
@@ -195,10 +229,15 @@ export const ProductDetailClient: React.FC<{ product: ProductData }> = ({ produc
               </span>
               <div className="flex items-baseline gap-2 mt-0.5">
                 <span className="font-serif text-3xl font-bold text-charcoal-700">
-                  ₹{unitTotalRs.toFixed(0)}
+                  ₹{(isNaN(unitTotalRs) || !isFinite(unitTotalRs) ? 0 : unitTotalRs).toFixed(0)}
                 </span>
+                {mrpNum > unitTotalRs && (
+                  <span className="text-sm text-charcoal-400 line-through">
+                    ₹{mrpNum}
+                  </span>
+                )}
                 <span className="text-xs text-charcoal-500">
-                  / {selectedVariant?.name}
+                  / {selectedVariant?.name || "Standard"}
                 </span>
               </div>
             </div>
@@ -274,9 +313,9 @@ export const ProductDetailClient: React.FC<{ product: ProductData }> = ({ produc
                           : "border-cream-200 hover:border-cream-300 bg-cream-50 text-charcoal-600"
                       }`}
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-1 min-w-0 pr-2">
                         <div
-                          className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+                          className={`w-3.5 h-3.5 rounded-full border flex-shrink-0 flex items-center justify-center ${
                             isSelected
                               ? "border-amberGold-500 bg-amberGold-500"
                               : "border-cream-300"
@@ -284,10 +323,10 @@ export const ProductDetailClient: React.FC<{ product: ProductData }> = ({ produc
                         >
                           {isSelected && <div className="w-1 h-1 rounded-full bg-cream-50" />}
                         </div>
-                        <span className="truncate">{opt.name}</span>
+                        <span className="leading-snug break-words">{opt.name}</span>
                       </div>
                       {opt.priceDeltaMinor > 0 && (
-                        <span className="text-amberGold-600 font-semibold text-[11px]">
+                        <span className="text-amberGold-600 font-semibold text-[11px] flex-shrink-0">
                           +₹{(opt.priceDeltaMinor / 100).toFixed(0)}
                         </span>
                       )}
@@ -338,6 +377,16 @@ export const ProductDetailClient: React.FC<{ product: ProductData }> = ({ produc
                       <span>Add to Cart &bull; ₹{(unitTotalRs * quantity).toFixed(0)}</span>
                     </>
                   )}
+                </Button>
+              ) : isComingSoon ? (
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  disabled
+                  className="flex-1 border-amber-300 bg-amber-50 text-amber-900 font-bold opacity-90 cursor-not-allowed"
+                >
+                  <Clock className="w-4 h-4 mr-2 text-amber-600 inline" />
+                  Coming Soon &mdash; Launching Shortly
                 </Button>
               ) : (
                 <Button variant="secondary" size="lg" disabled className="flex-1">

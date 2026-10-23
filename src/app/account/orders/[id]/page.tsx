@@ -21,6 +21,7 @@ import {
   Check,
 } from "lucide-react";
 import { OrderDetailSkeleton } from "@/components/ui/Skeleton";
+import { DynamicPaymentModal } from "@/components/payment/DynamicPaymentModal";
 
 export default function OrderTrackingPage() {
   const params = useParams();
@@ -46,34 +47,60 @@ export default function OrderTrackingPage() {
   // Cancellation state
   const [isCancelling, setIsCancelling] = useState(false);
 
+  // Dynamic Payment Modal state
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+
   // 20-Minute Live Delivery Countdown Timer State
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
+
+  // 3-Minute Cancellation Window Timer State
+  const [cancelSecondsRemaining, setCancelSecondsRemaining] = useState<number | null>(null);
+
+  const isPrepaidOrder = Boolean(
+    order?.payment && (order.payment.method !== "COD" || order.payment.status === "COMPLETED")
+  );
 
   useEffect(() => {
     if (!order?.placedAt || order.status === "DELIVERED" || order.status === "CANCELLED") {
       return;
     }
 
-    const calculateRemaining = () => {
-      const placedTime = new Date(order.placedAt).getTime();
-      const targetTime = placedTime + 20 * 60 * 1000; // 20 minutes from placement
-      const diffSecs = Math.max(0, Math.floor((targetTime - Date.now()) / 1000));
-      setRemainingSeconds(diffSecs);
+    const calculateTimers = () => {
+      // The 20-minute delivery countdown begins ONLY after the order is confirmed by the admin
+      if (order.confirmedAt) {
+        const confirmedTime = new Date(order.confirmedAt).getTime();
+        const targetDeliveryTime = confirmedTime + 20 * 60 * 1000; // 20 minutes from admin confirmation
+        const diffSecs = Math.max(0, Math.floor((targetDeliveryTime - Date.now()) / 1000));
+        setRemainingSeconds(diffSecs);
+      } else {
+        setRemainingSeconds(null);
+      }
+
+      // Cancellation window only applies to COD orders; prepaid orders cannot be cancelled
+      const isPrepaid = order.payment && (order.payment.method !== "COD" || order.payment.status === "COMPLETED");
+      if (!isPrepaid) {
+        const placedTime = new Date(order.placedAt).getTime();
+        const cancelCutoff = placedTime + 3 * 60 * 1000;
+        const cancelDiff = Math.max(0, Math.floor((cancelCutoff - Date.now()) / 1000));
+        setCancelSecondsRemaining(cancelDiff);
+      } else {
+        setCancelSecondsRemaining(null);
+      }
     };
 
-    calculateRemaining();
-    const timer = setInterval(calculateRemaining, 1000);
+    calculateTimers();
+    const timer = setInterval(calculateTimers, 1000);
     return () => clearInterval(timer);
-  }, [order?.placedAt, order?.status]);
+  }, [order?.placedAt, order?.confirmedAt, order?.status, order?.payment]);
 
   const fetchOrder = async () => {
     try {
       const res = await fetch(`/api/orders/${orderId}`);
       if (res.ok) {
-        const data = await res.json();
-        setOrder(data.order);
+        const data = await res.json().catch(() => ({}));
+        setOrder(data.order || null);
       } else {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({}));
         setErrorMsg(err.error || "Order not found");
       }
     } catch {
@@ -95,6 +122,11 @@ export default function OrderTrackingPage() {
   }, [orderId]);
 
   const handleCancelOrder = async () => {
+    if (!order?.id) return;
+    if (isPrepaidOrder) {
+      alert("Prepaid orders cannot be cancelled online.");
+      return;
+    }
     if (!confirm("Are you sure you want to cancel this order?")) return;
     setIsCancelling(true);
     try {
@@ -106,7 +138,7 @@ export default function OrderTrackingPage() {
       if (res.ok) {
         await fetchOrder();
       } else {
-        const d = await res.json();
+        const d = await res.json().catch(() => ({}));
         alert(d.error || "Unable to cancel order");
       }
     } catch {
@@ -118,6 +150,7 @@ export default function OrderTrackingPage() {
 
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!order?.id) return;
     setSubmittingReview(true);
     try {
       const res = await fetch(`/api/orders/${order.id}/review`, {
@@ -130,7 +163,7 @@ export default function OrderTrackingPage() {
         await fetchOrder();
         setTimeout(() => setIsReviewModalOpen(false), 1200);
       } else {
-        const d = await res.json();
+        const d = await res.json().catch(() => ({}));
         alert(d.error || "Failed to submit review");
       }
     } catch {
@@ -141,12 +174,13 @@ export default function OrderTrackingPage() {
   };
 
   const handleOpenInvoice = async () => {
+    if (!order?.id) return;
     setIsInvoiceModalOpen(true);
     try {
       const res = await fetch(`/api/orders/${order.id}/invoice`);
       if (res.ok) {
-        const data = await res.json();
-        setInvoiceData(data.invoice);
+        const data = await res.json().catch(() => ({}));
+        setInvoiceData(data.invoice || null);
       }
     } catch {}
   };
@@ -213,23 +247,52 @@ export default function OrderTrackingPage() {
             <span>View Invoice</span>
           </Button>
 
-          {order.status === "PLACED" && (
-            <Button
-              variant="danger"
-              size="sm"
-              onClick={handleCancelOrder}
-              isLoading={isCancelling}
-              className="text-xs"
-            >
-              Cancel Order
-            </Button>
+          {order.status !== "DELIVERED" && order.status !== "CANCELLED" && (
+            <>
+              {isPrepaidOrder ? (
+                <span className="text-[10px] text-emerald-800 font-semibold px-2.5 py-1.5 bg-emerald-50 rounded-xl border border-emerald-200 flex items-center gap-1 shadow-2xs">
+                  <Shield className="w-3 h-3 text-emerald-600" />
+                  <span>Prepaid Order</span>
+                </span>
+              ) : cancelSecondsRemaining !== null && cancelSecondsRemaining > 0 ? (
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={handleCancelOrder}
+                  isLoading={isCancelling}
+                  className="text-xs font-semibold shadow-sm"
+                >
+                  <span>
+                    Cancel COD ({Math.floor(cancelSecondsRemaining / 60)}:
+                    {String(cancelSecondsRemaining % 60).padStart(2, "0")})
+                  </span>
+                </Button>
+              ) : (
+                <span className="text-[10px] text-stone-500 font-medium px-2.5 py-1.5 bg-stone-100 rounded-xl border border-stone-200">
+                  Cancel window closed
+                </span>
+              )}
+            </>
           )}
         </div>
       </div>
 
-      {/* 20-Minute Express Delivery Live Countdown Timer */}
-      {!isCancelled && order.status !== "DELIVERED" && remainingSeconds !== null && (
-        <div className="bg-gradient-to-r from-charcoal-700 via-charcoal-800 to-amber-950 text-cream-50 rounded-3xl p-6 shadow-card border border-amberGold-400/40 space-y-4">
+      {/* Notice when order is placed and awaiting store admin confirmation */}
+      {!isCancelled && order.status === "PLACED" && !order.confirmedAt && (
+        <div className="bg-amber-50/90 border border-amber-300 rounded-3xl p-5 shadow-sm space-y-2 animate-fade-in">
+          <div className="flex items-center gap-2.5 text-amber-900 font-bold text-sm">
+            <Clock className="w-5 h-5 text-amber-600 animate-spin" />
+            <span>Order Received — Awaiting Store Confirmation</span>
+          </div>
+          <p className="text-xs text-amber-800 leading-relaxed">
+            Your order has reached our hub (Srinivaspur Road, Mulbagal). <strong>Your 20-minute delivery countdown timer will begin the moment our store admin confirms your order.</strong>
+          </p>
+        </div>
+      )}
+
+      {/* 20-Minute Express Delivery Live Countdown Timer (Begins ONLY after Admin Confirmation) */}
+      {!isCancelled && order.status !== "DELIVERED" && order.confirmedAt && remainingSeconds !== null && (
+        <div className="bg-gradient-to-r from-charcoal-700 via-charcoal-800 to-amber-950 text-cream-50 rounded-3xl p-6 shadow-card border border-amberGold-400/40 space-y-4 animate-fade-in">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-2xl bg-amberGold-500/20 text-amberGold-400 flex items-center justify-center border border-amberGold-400/30 flex-shrink-0 animate-pulse">
@@ -270,8 +333,8 @@ export default function OrderTrackingPage() {
               />
             </div>
             <div className="flex justify-between text-[10px] text-cream-300/80 font-mono">
-              <span>Placed: {new Date(order.placedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-              <span>Target Handover: ~20 Mins ({new Date(new Date(order.placedAt).getTime() + 20 * 60 * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})</span>
+              <span>Confirmed: {new Date(order.confirmedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+              <span>Target Delivery: ~20 Mins ({new Date(new Date(order.confirmedAt).getTime() + 20 * 60 * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})</span>
             </div>
           </div>
         </div>
@@ -536,10 +599,29 @@ export default function OrderTrackingPage() {
 
             <div className="pt-1 text-[11px] text-charcoal-400 flex items-center justify-between">
               <span>Method: {order.payment?.method || "COD"}</span>
-              <span className="font-medium text-charcoal-600">
-                Status: {order.payment?.status || "PENDING"}
+              <span className={`font-semibold px-2 py-0.5 rounded text-[10px] ${
+                order.payment?.status === "COMPLETED"
+                  ? "bg-emerald-100 text-emerald-800"
+                  : order.payment?.status === "FAILED"
+                  ? "bg-rose-100 text-rose-800"
+                  : "bg-amberGold-100 text-amberGold-800"
+              }`}>
+                {order.payment?.status === "COMPLETED" ? "PAID / SUCCESS" : order.payment?.status === "FAILED" ? "FAILED" : "PENDING"}
               </span>
             </div>
+
+            {order.payment?.status === "PENDING" && order.status !== "CANCELLED" && (
+              <div className="pt-3 border-t border-cream-200">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setIsPaymentModalOpen(true)}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-sm"
+                >
+                  Pay via Dynamic QR / GPay / PhonePe
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -688,6 +770,21 @@ export default function OrderTrackingPage() {
           <p className="text-xs text-charcoal-400 py-4 text-center">Loading invoice...</p>
         )}
       </Modal>
+
+      {/* Dynamic Payment Modal */}
+      {order && isPaymentModalOpen && (
+        <DynamicPaymentModal
+          isOpen={isPaymentModalOpen}
+          orderId={order.id}
+          orderNumber={order.orderNumber}
+          amountRupees={order.totalMinor / 100}
+          onClose={() => setIsPaymentModalOpen(false)}
+          onSuccess={() => {
+            setIsPaymentModalOpen(false);
+            fetchOrder();
+          }}
+        />
+      )}
     </div>
   );
 }

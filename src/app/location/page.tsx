@@ -24,7 +24,7 @@ export default function LocationPage() {
           Mulbagal City Delivery Zones
         </h1>
         <p className="text-xs sm:text-sm text-charcoal-500 leading-relaxed font-light">
-          We are located at Clock Tower Bazaar, Mulbagal. We deliver throughout the city with a 20-minute operational target.
+          We are located at Srinivaspur Road, Mulbagal 563131. We deliver fresh groceries and tender meats throughout the city with a ~20-minute operational target.
         </p>
       </div>
 
@@ -45,7 +45,7 @@ export default function LocationPage() {
               <div className="flex items-start gap-2.5">
                 <Check className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
                 <span>
-                  <strong>First 3 km (3000m) Free:</strong> Orders within 3km of our Clock Tower shop incur zero delivery charges.
+                  <strong>First 3 km (3000m) Free:</strong> Orders within 3km of our Srinivaspur Road hub incur zero delivery charges.
                 </span>
               </div>
               <div className="flex items-start gap-2.5">

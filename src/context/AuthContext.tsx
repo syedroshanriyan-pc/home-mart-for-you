@@ -31,6 +31,7 @@ interface AuthContextType {
   login: (identifier: string, pass: string) => Promise<{ success: boolean; user?: UserProfile; error?: string }>;
   register: (data: any) => Promise<{ success: boolean; user?: UserProfile; error?: string }>;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<{ success: boolean; error?: string }>;
   refreshUser: () => Promise<void>;
 }
 
@@ -42,6 +43,7 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => ({ success: false }),
   register: async () => ({ success: false }),
   logout: async () => {},
+  deleteAccount: async () => ({ success: false }),
   refreshUser: async () => {},
 });
 
@@ -125,6 +127,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const deleteAccount = async () => {
+    try {
+      const res = await fetch("/api/auth/delete-account", {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return { success: false, error: data.error || "Failed to delete account" };
+      }
+      setUser(null);
+      setSelectedAddress(null);
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.removeItem("fresh-chicken-cart-v1");
+          localStorage.removeItem("fc_user_session");
+        } catch {}
+      }
+      return { success: true };
+    } catch {
+      return { success: false, error: "Network error during account deletion." };
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -135,6 +160,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         register,
         logout,
+        deleteAccount,
         refreshUser,
       }}
     >

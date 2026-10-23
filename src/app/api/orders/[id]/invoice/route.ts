@@ -48,10 +48,11 @@ export async function GET(
         deliveredAt: order.deliveredAt,
         status: order.status,
         shop: {
-          name: "Fresh Chicken",
-          tagline: "Farm Fresh Chicken Retail & Delivery",
-          address: "Main Bazaar Road, Near Clock Tower, Mulbagal, Karnataka 563131",
-          phone: "+91 98450 12345",
+          name: "homemart4u",
+          tagline: "Fresh Groceries & Farm Fresh Halal Meats",
+          address: "Srinivaspur Road, Mulbagal 563131",
+          phone: "+91 90355 26638",
+          email: "support.homemart4u@gmail.com",
         },
         customer: {
           name: order.user.name,

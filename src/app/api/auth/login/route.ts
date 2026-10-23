@@ -37,10 +37,20 @@ export async function POST(req: NextRequest) {
     }
 
     const identifier = sanitizeText(rawIdentifier, 100).trim();
+    // Normalize mobile if phone format was passed (+91 70224 61700 -> 7022461700)
+    const digitsOnly = identifier.replace(/[^\d+]/g, "").replace(/^\+91/, "").replace(/\D/g, "");
+
+    const orConditions: any[] = [
+      { mobile: identifier },
+      { email: { equals: identifier, mode: "insensitive" } },
+    ];
+    if (digitsOnly && digitsOnly.length === 10) {
+      orConditions.push({ mobile: digitsOnly });
+    }
 
     const user = await prisma.user.findFirst({
       where: {
-        OR: [{ mobile: identifier }, { email: identifier }],
+        OR: orConditions,
       },
       include: {
         addresses: true,

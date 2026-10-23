@@ -86,6 +86,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const navItems = [
     { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
     { label: "Orders", href: "/admin/orders", icon: ShoppingBag },
+    { label: "Bank UTR Records", href: "/admin/bank-transactions", icon: DollarSign },
     { label: "Delivery Agents", href: "/admin/delivery", icon: Bike },
     { label: "Products Catalog", href: "/admin/products", icon: Package },
     { label: "Categories", href: "/admin/categories", icon: Layers },
@@ -168,11 +169,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Navbar */}
-        <header className="h-16 bg-cream-50 border-b border-cream-200 flex items-center justify-between px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
+        <header className="h-16 bg-cream-50 border-b border-cream-200 flex items-center justify-between px-3 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-2 sm:gap-3">
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="lg:hidden p-2 rounded-xl text-charcoal-600 hover:bg-cream-100"
+              className="lg:hidden p-2 rounded-xl text-charcoal-600 hover:bg-cream-100 transition"
+              aria-label="Open Admin Menu"
             >
               <Menu className="w-5 h-5" />
             </button>
@@ -181,15 +183,35 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </h2>
           </div>
 
-          <div className="flex items-center gap-4">
-            <span className="text-xs text-charcoal-500 font-mono">
-              Mulbagal Central Shop
-            </span>
-            <div className="flex items-center gap-2 pl-3 border-l border-cream-200">
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Direct Customer Storefront Link - Always accessible on mobile & desktop */}
+            <Link
+              href="/"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl text-xs font-semibold bg-charcoal-700 hover:bg-black text-cream-50 transition shadow-subtle"
+              title="Switch to Customer Storefront"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-amberGold-400 shrink-0" />
+              <span>Customer Website</span>
+            </Link>
+
+            {/* Direct Mobile & Desktop Sign Out Button */}
+            <button
+              onClick={() => {
+                logout();
+                router.push("/login");
+              }}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-crimson-600 hover:bg-crimson-50 border border-crimson-200 transition"
+              title="Sign Out of Admin"
+            >
+              <LogOut className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden xs:inline">Sign Out</span>
+            </button>
+
+            <div className="hidden sm:flex items-center gap-2 pl-2 border-l border-cream-200">
               <div className="w-7 h-7 rounded-full bg-charcoal-500 text-cream-50 text-xs font-bold flex items-center justify-center">
                 {user.name.charAt(0).toUpperCase()}
               </div>
-              <span className="text-xs font-semibold text-charcoal-700 hidden sm:inline">
+              <span className="text-xs font-semibold text-charcoal-700 hidden md:inline">
                 {user.name}
               </span>
             </div>
@@ -203,30 +225,62 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               className="fixed inset-0 bg-charcoal-700/60 backdrop-blur-sm"
               onClick={() => setIsSidebarOpen(false)}
             />
-            <div className="relative w-64 max-w-xs bg-charcoal-600 text-cream-50 flex flex-col p-4 z-10 space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-charcoal-500">
+            <div className="relative w-72 max-w-xs bg-charcoal-600 text-cream-50 flex flex-col p-4 z-10 space-y-3 h-full">
+              <div className="flex items-center justify-between pb-3 border-b border-charcoal-500 flex-shrink-0">
                 <Logo variant="light" size="sm" />
                 <button
                   onClick={() => setIsSidebarOpen(false)}
-                  className="p-1 rounded-lg hover:bg-charcoal-500 text-cream-200"
+                  className="p-1.5 rounded-xl hover:bg-charcoal-500 text-cream-200 transition"
+                  aria-label="Close Admin Menu"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <nav className="flex-1 space-y-1 overflow-y-auto">
+              <span className="text-[10px] font-mono tracking-widest text-amberGold-300 uppercase px-1">
+                Operations Menu
+              </span>
+
+              <nav className="flex-1 space-y-1 overflow-y-auto pr-1">
                 {navItems.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
                     onClick={() => setIsSidebarOpen(false)}
-                    className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-cream-200 hover:bg-charcoal-500"
+                    className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-cream-200 hover:bg-charcoal-500 transition"
                   >
-                    <item.icon className="w-4 h-4 text-amberGold-400" />
+                    <item.icon className="w-4 h-4 text-amberGold-400 shrink-0" />
                     <span>{item.label}</span>
                   </Link>
                 ))}
               </nav>
+
+              {/* Mobile Drawer Footer Actions: Customer Website & Sign Out */}
+              <div className="pt-3 border-t border-charcoal-500 space-y-2 flex-shrink-0">
+                <Link
+                  href="/"
+                  onClick={() => setIsSidebarOpen(false)}
+                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold text-cream-50 bg-charcoal-500 hover:bg-charcoal-400 transition"
+                >
+                  <span className="flex items-center gap-2">
+                    <ExternalLink className="w-4 h-4 text-amberGold-400" />
+                    <span>Go to Customer Website</span>
+                  </span>
+                  <span className="text-[10px] text-amberGold-300 font-mono">&rarr;</span>
+                </Link>
+
+                <button
+                  onClick={() => {
+                    setIsSidebarOpen(false);
+                    logout();
+                    router.push("/login");
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold text-crimson-400 hover:bg-crimson-950/40 border border-crimson-900/50 transition"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Sign Out of Admin</span>
+                </button>
+              </div>
             </div>
           </div>
         )}

@@ -116,12 +116,17 @@ export default function DeliveryOrderDetailPage() {
   const addr = ord.deliveryAddress || {};
   const isCod = ord.paymentMethod === "COD";
 
+  const primaryAddressLine = addr.addressLine || addr.line1 || (typeof addr === "string" ? addr : "Delivery Address");
+  const secondaryAddressLine = addr.locality || addr.line2 || "";
+  const addressCity = addr.city || "Mulbagal";
+  const addressPostal = addr.postalCode || "563131";
+
   // Google Maps navigation link
   const mapsUrl =
     addr.latitude && addr.longitude
       ? `https://www.google.com/maps/dir/?api=1&destination=${addr.latitude},${addr.longitude}`
       : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-          `${addr.line1 || ""} ${addr.line2 || ""} ${addr.city || ""} ${addr.postalCode || ""}`
+          `${primaryAddressLine} ${secondaryAddressLine} ${addressCity} ${addressPostal}`
         )}`;
 
   return (
@@ -167,17 +172,19 @@ export default function DeliveryOrderDetailPage() {
               Customer Name
             </span>
             <span className="text-base font-bold text-charcoal-800">
-              {ord.user?.name}
+              {ord.user?.name || "Customer"}
             </span>
           </div>
 
-          <a
-            href={`tel:${ord.user?.mobile}`}
-            className="flex items-center gap-2 px-4 py-2 bg-forest-600 hover:bg-forest-700 text-white rounded-xl text-xs font-bold transition shadow-subtle"
-          >
-            <Phone className="w-4 h-4" />
-            Call Customer
-          </a>
+          {ord.user?.mobile && (
+            <a
+              href={`tel:${ord.user.mobile}`}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-subtle"
+            >
+              <Phone className="w-4 h-4" />
+              Call Customer
+            </a>
+          )}
         </div>
 
         {/* Address & Navigation */}
@@ -186,8 +193,8 @@ export default function DeliveryOrderDetailPage() {
             <MapPin className="w-4 h-4 text-crimson-600 flex-shrink-0 mt-0.5" />
             <div>
               <p className="font-semibold text-charcoal-800">
-                {addr.line1}
-                {addr.line2 ? `, ${addr.line2}` : ""}
+                {primaryAddressLine}
+                {secondaryAddressLine ? `, ${secondaryAddressLine}` : ""}
               </p>
               {addr.landmark && (
                 <p className="text-[11px] text-amberGold-700 font-medium mt-0.5">
@@ -195,7 +202,7 @@ export default function DeliveryOrderDetailPage() {
                 </p>
               )}
               <p className="text-[11px] text-charcoal-500 mt-0.5">
-                {addr.city}, {addr.state} - {addr.postalCode}
+                {addressCity}{addr.state ? `, ${addr.state}` : ""} - {addressPostal}
               </p>
             </div>
           </div>
@@ -252,21 +259,26 @@ export default function DeliveryOrderDetailPage() {
         </div>
 
         <div className="divide-y divide-cream-100">
-          {ord.items.map((item: any) => (
-            <div key={item.id} className="py-2.5 flex items-center justify-between text-xs">
-              <div>
-                <span className="font-semibold text-charcoal-800 block">
-                  {item.productName}
-                </span>
-                <span className="text-[11px] text-charcoal-500">
-                  {item.variantName} &bull; Qty: {item.quantity} ({item.weightGrams}g each)
+          {ord.items.map((item: any) => {
+            const prodName = item.productNameSnapshot || item.productName || item.product?.name || "Fresh Item";
+            const varName = item.variantNameSnapshot || item.variantName || item.variant?.name || "Standard";
+            const price = item.lineTotalMinor ?? (item.unitPriceMinor ? item.unitPriceMinor * item.quantity : (item.priceMinor ? item.priceMinor * item.quantity : 0));
+            return (
+              <div key={item.id} className="py-2.5 flex items-center justify-between text-xs">
+                <div>
+                  <span className="font-semibold text-charcoal-800 block">
+                    {prodName}
+                  </span>
+                  <span className="text-[11px] text-charcoal-500">
+                    {varName} &bull; Qty: {item.quantity} {item.weightGrams ? `(${item.weightGrams}g each)` : ""}
+                  </span>
+                </div>
+                <span className="font-mono font-semibold text-charcoal-700">
+                  {formatCurrency(price)}
                 </span>
               </div>
-              <span className="font-mono font-semibold text-charcoal-700">
-                {formatCurrency(item.priceMinor * item.quantity)}
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -276,9 +288,9 @@ export default function DeliveryOrderDetailPage() {
           <button
             onClick={handleStartDelivery}
             disabled={actionLoading}
-            className="w-full flex items-center justify-center gap-2 py-3.5 bg-amberGold-500 hover:bg-amberGold-600 text-charcoal-900 rounded-2xl text-xs font-bold shadow-subtle transition disabled:opacity-50 uppercase tracking-wider"
+            className="w-full flex items-center justify-center gap-2 py-4 bg-amberGold-500 hover:bg-amberGold-600 text-charcoal-900 rounded-2xl text-sm font-black shadow-md transition active:scale-[0.99] disabled:opacity-50 uppercase tracking-wider"
           >
-            <Bike className="w-4 h-4" />
+            <Bike className="w-5 h-5 text-charcoal-900" />
             {actionLoading ? "Updating..." : "Start Delivery Run (Leave Hub)"}
           </button>
         )}
@@ -287,16 +299,16 @@ export default function DeliveryOrderDetailPage() {
           <button
             onClick={() => setIsDeliverModalOpen(true)}
             disabled={actionLoading}
-            className="w-full flex items-center justify-center gap-2 py-3.5 bg-forest-600 hover:bg-forest-700 text-white rounded-2xl text-xs font-bold shadow-subtle transition disabled:opacity-50 uppercase tracking-wider"
+            className="w-full flex items-center justify-center gap-2.5 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-sm font-black shadow-md transition active:scale-[0.99] disabled:opacity-50 uppercase tracking-wider cursor-pointer"
           >
-            <CheckCircle2 className="w-4 h-4" />
+            <CheckCircle2 className="w-5 h-5 text-white" />
             Confirm Handover & Deliver
           </button>
         )}
 
         {assignment.status === "DELIVERED" && (
-          <div className="p-3.5 bg-forest-50 border border-forest-200 text-forest-700 rounded-2xl text-center text-xs font-semibold flex items-center justify-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-forest-600" />
+          <div className="p-4 bg-emerald-50 border border-emerald-300 text-emerald-800 rounded-2xl text-center text-xs font-bold flex items-center justify-center gap-2 shadow-subtle">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
             Order delivered successfully on {new Date(assignment.deliveredAt).toLocaleTimeString()}
           </div>
         )}
@@ -346,7 +358,7 @@ export default function DeliveryOrderDetailPage() {
               type="button"
               onClick={handleCompleteDelivery}
               disabled={actionLoading || (isCod && !codCollectedVerified)}
-              className="px-5 py-2 bg-forest-600 hover:bg-forest-700 text-white rounded-xl text-xs font-bold transition disabled:opacity-50"
+              className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition disabled:opacity-50 shadow-md cursor-pointer"
             >
               {actionLoading
                 ? "Completing..."

@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-export async function POST(
+async function handleToggle(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  params: Promise<{ id: string }>
 ) {
   try {
     const session = await getSessionUser(req);
@@ -19,9 +19,19 @@ export async function POST(
       return NextResponse.json({ error: "Coupon not found" }, { status: 404 });
     }
 
+    let nextStatus = !coupon.isActive;
+    try {
+      const body = await req.json();
+      if (typeof body?.isActive === "boolean") {
+        nextStatus = body.isActive;
+      }
+    } catch {
+      // Body not provided or not JSON, default to toggle
+    }
+
     const updated = await prisma.coupon.update({
       where: { id },
-      data: { isActive: !coupon.isActive },
+      data: { isActive: nextStatus },
     });
 
     await prisma.auditLog.create({
@@ -39,4 +49,18 @@ export async function POST(
     console.error("Coupon toggle error:", error);
     return NextResponse.json({ error: "Failed to toggle coupon" }, { status: 500 });
   }
+}
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  return handleToggle(req, params);
+}
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  return handleToggle(req, params);
 }

@@ -70,7 +70,7 @@ export const Footer: React.FC = () => {
                 Open All 7 Days
               </h4>
               <p className="text-xs text-charcoal-50 mt-1">
-                6:30 AM to 9:00 PM. Serving breakfast, lunch, and dinner deliveries.
+                8:30 AM to 7:00 PM. Serving fresh morning &amp; evening deliveries daily.
               </p>
             </div>
           </div>
@@ -82,24 +82,23 @@ export const Footer: React.FC = () => {
           <div className="space-y-4">
             <Logo variant="light" size="md" />
             <p className="text-xs text-charcoal-50 leading-relaxed">
-              Mulbagal&apos;s premier fresh meat boutique. Supplying premium grade tender chicken,
-              traditional country desi eggs, and artisanal masala cuts directly to your doorstep.
+              Mulbagal&apos;s trusted online destination for farm fresh chicken cuts, fresh fish, and daily essential groceries. Powered by our Srinivaspur Road express fulfillment center.
             </p>
             <div className="space-y-1.5 text-xs text-cream-200">
               <p className="flex items-center gap-2">
                 <MapPin className="w-3.5 h-3.5 text-amberGold-400 flex-shrink-0" />
-                Main Bazaar Road, Near Clock Tower, Mulbagal
+                Srinivaspur Road, Mulbagal 563131
               </p>
-              <p className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
                 <Phone className="w-3.5 h-3.5 text-amberGold-400 flex-shrink-0" />
-                <a href="tel:+919845012345" className="hover:text-amberGold-300 transition-colors">
-                  +91 98450 12345
+                <a href="tel:+919035526638" className="hover:text-amberGold-300 transition-colors">
+                  +91 90355 26638
                 </a>
-              </p>
+              </div>
               <p className="flex items-center gap-2">
                 <span className="text-amberGold-400 text-xs">✉</span>
-                <a href="mailto:support@freshchicken.com" className="hover:text-amberGold-300 transition-colors">
-                  support@freshchicken.com
+                <a href="mailto:support.homemart4u@gmail.com" className="hover:text-amberGold-300 transition-colors">
+                  support.homemart4u@gmail.com
                 </a>
               </p>
             </div>
@@ -108,17 +107,17 @@ export const Footer: React.FC = () => {
           {/* Quick Links */}
           <div>
             <h4 className="font-serif text-sm font-semibold text-cream-50 mb-3 tracking-wide">
-              Navigation
+              Quick Navigation
             </h4>
             <ul className="space-y-2 text-xs text-charcoal-50">
               <li>
                 <Link href="/menu" className="hover:text-cream-50 transition-colors">
-                  Complete Menu & Pricing
+                  Store Catalog &amp; Menu
                 </Link>
               </li>
               <li>
                 <Link href="/offers" className="hover:text-cream-50 transition-colors">
-                  Today&apos;s Offers & Coupons
+                  Today&apos;s Offers &amp; Discounts
                 </Link>
               </li>
               <li>
@@ -128,55 +127,113 @@ export const Footer: React.FC = () => {
               </li>
               <li>
                 <Link href="/about" className="hover:text-cream-50 transition-colors">
-                  Our Quality & Hygiene Standard
+                  About Our Srinivaspur Road Hub
                 </Link>
               </li>
               <li>
                 <Link href="/contact" className="hover:text-cream-50 transition-colors">
-                  Help & Contact Us
+                  Help &amp; Contact Us
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* Factual Answer Guide (AEO) */}
-          <div className="md:col-span-2">
+          {/* Customer Care & Hours */}
+          <div>
             <h4 className="font-serif text-sm font-semibold text-cream-50 mb-3 tracking-wide">
-              Ordering & Delivery Policies (Quick Reference)
+              Customer Support
             </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-charcoal-50">
-              <div className="bg-charcoal-500/50 p-3 rounded-xl border border-charcoal-400">
-                <strong className="text-cream-50 block mb-1">No Minimum Order:</strong>
-                Order any quantity you need—from 500g chicken cuts, fresh fish, and desi eggs to chilled drinks.
-              </div>
-              <div className="bg-charcoal-500/50 p-3 rounded-xl border border-charcoal-400">
-                <strong className="text-cream-50 block mb-1">Delivery Charges:</strong>
-                First 3 km from Mulbagal store is <strong>FREE</strong>. Beyond 3 km: ₹1.50 per 100 metres.
-              </div>
-              <div className="bg-charcoal-500/50 p-3 rounded-xl border border-charcoal-400">
-                <strong className="text-cream-50 block mb-1">Delivery Speed:</strong>
-                Operational target is ~20 minutes for orders placed within Mulbagal town.
-              </div>
-              <div className="bg-charcoal-500/50 p-3 rounded-xl border border-charcoal-400">
-                <strong className="text-cream-50 block mb-1">Payment Options:</strong>
-                UPI (Google Pay, PhonePe, Paytm) and Cash on Delivery (COD +₹7 surcharge).
-              </div>
-            </div>
+            <ul className="space-y-2 text-xs text-charcoal-50">
+              <li>
+                <p className="text-cream-50 font-medium">Daily Operating Hours</p>
+                <p className="text-cream-200/80">8:30 AM &ndash; 7:00 PM (All 7 Days)</p>
+              </li>
+              <li className="pt-1">
+                <p className="text-cream-50 font-medium">Express Dispatch Hub</p>
+                <p className="text-cream-200/80">Srinivaspur Road, Mulbagal &bull; 563131</p>
+              </li>
+              <li className="pt-1 flex flex-col gap-1">
+                <a
+                  href="tel:+919035526638"
+                  className="inline-flex items-center gap-1.5 text-amberGold-400 hover:text-amberGold-300 font-medium"
+                >
+                  <Phone className="w-3.5 h-3.5" />
+                  <span>+91 90355 26638</span>
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          {/* Legal & Statutory Rights */}
+          <div>
+            <h4 className="font-serif text-sm font-semibold text-cream-50 mb-3 tracking-wide">
+              Legal &amp; Consumer Rights
+            </h4>
+            <ul className="space-y-2 text-xs text-charcoal-50">
+              <li>
+                <Link href="/privacy-policy" className="hover:text-cream-50 transition-colors">
+                  Privacy Policy (DPDP Act)
+                </Link>
+              </li>
+              <li>
+                <Link href="/terms-and-conditions" className="hover:text-cream-50 transition-colors">
+                  Terms &amp; Conditions
+                </Link>
+              </li>
+              <li>
+                <Link href="/cancellation-refund-policy" className="hover:text-cream-50 transition-colors">
+                  Cancellation &amp; Refunds
+                </Link>
+              </li>
+              <li>
+                <Link href="/shipping-policy" className="hover:text-cream-50 transition-colors">
+                  Shipping &amp; Delivery SLA
+                </Link>
+              </li>
+              <li>
+                <Link href="/grievance-redressal" className="hover:text-cream-50 transition-colors">
+                  Grievance Redressal
+                </Link>
+              </li>
+              <li>
+                <Link href="/cookie-policy" className="hover:text-cream-50 transition-colors">
+                  Cookie Policy
+                </Link>
+              </li>
+              <li>
+                <Link href="/faq" className="hover:text-cream-50 transition-colors">
+                  Frequently Asked Questions
+                </Link>
+              </li>
+            </ul>
           </div>
         </div>
 
         {/* Bottom Copyright & Sub-surfaces */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-charcoal-50 gap-4">
-          <p>&copy; {new Date().getFullYear()} Fresh Chicken. All rights reserved. Mulbagal, Karnataka.</p>
-          <div className="flex items-center gap-6">
+          <p>
+            &copy; 2026 homemart4u. All Rights Reserved. powered by{" "}
+            <a
+              href="https://r2dlabs.r2d-labs.workers.dev"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-amberGold-400 hover:text-amberGold-300 font-semibold underline underline-offset-2 transition-colors"
+            >
+              R2D Labs
+            </a>
+          </p>
+          <div className="flex items-center gap-5 flex-wrap justify-center sm:justify-end">
             <Link href="/location" className="hover:text-cream-50 transition-colors">
               Delivery Coverage
             </Link>
             <Link href="/about" className="hover:text-cream-50 transition-colors">
-              Freshness Standard
+              Freshness &amp; Halal Standard
+            </Link>
+            <Link href="/privacy-policy" className="hover:text-cream-50 transition-colors">
+              Privacy Policy
             </Link>
             <Link href="/contact" className="hover:text-cream-50 transition-colors">
-              Support & Inquiries
+              Support &amp; Inquiries
             </Link>
           </div>
         </div>

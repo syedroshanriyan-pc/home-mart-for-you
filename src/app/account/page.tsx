@@ -1,10 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import {
   ShoppingBag,
   MapPin,
@@ -15,11 +16,30 @@ import {
   LogOut,
   User,
   ChevronRight,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 
 export default function AccountPage() {
-  const { user, loading, logout } = useAuth();
+  const { user, loading, logout, deleteAccount } = useAuth();
   const router = useRouter();
+
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
+  const handleDeleteAccount = async () => {
+    setIsDeleting(true);
+    setDeleteError("");
+    const res = await deleteAccount();
+    setIsDeleting(false);
+    if (res.success) {
+      setIsDeleteModalOpen(false);
+      router.push("/login?deleted=true");
+    } else {
+      setDeleteError(res.error || "Failed to delete account. Please try again.");
+    }
+  };
 
   if (loading) {
     return (
@@ -198,6 +218,93 @@ export default function AccountPage() {
           <ChevronRight className="w-4 h-4 text-charcoal-400 group-hover:text-charcoal-700 group-hover:translate-x-0.5 transition-all" />
         </Link>
       </div>
+
+      {/* Account Privacy & Deletion (Danger Zone) */}
+      <div className="rounded-3xl border border-red-200 bg-red-50/40 p-6 sm:p-7 shadow-subtle space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="p-2.5 rounded-xl bg-red-100 text-red-700 shrink-0 mt-0.5">
+              <Trash2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-serif text-sm sm:text-base font-bold text-red-950 flex items-center gap-2">
+                Delete Account &amp; Personal Data
+                <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-red-200/70 text-red-800 font-semibold tracking-wider">
+                  Permanent
+                </span>
+              </h3>
+              <p className="text-xs text-stone-600 mt-1 max-w-xl leading-relaxed">
+                Permanently erase your account, login credentials, saved delivery addresses, order records, and all data from our database. This action is irreversible.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setDeleteError("");
+              setIsDeleteModalOpen(true);
+            }}
+            className="self-start sm:self-center border-red-300 text-red-700 hover:bg-red-600 hover:text-white hover:border-red-600 transition-all font-semibold shrink-0"
+          >
+            <Trash2 className="w-4 h-4 mr-1.5" />
+            <span>Delete Account</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* Account Deletion Confirmation Modal */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => !isDeleting && setIsDeleteModalOpen(false)}
+        title="Delete Account Permanently?"
+        maxWidth="md"
+      >
+        <div className="space-y-4">
+          <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-xs text-red-800 space-y-2">
+            <div className="flex items-center gap-2 font-bold text-red-900 text-sm">
+              <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+              <span>Warning: This action cannot be undone</span>
+            </div>
+            <p>
+              You are about to permanently delete your account (<strong>{user.mobile}</strong>). All your records will be immediately erased from everywhere including the database:
+            </p>
+            <ul className="list-disc pl-5 space-y-1 text-red-700 text-[11px]">
+              <li>Profile information and credentials</li>
+              <li>Saved delivery addresses and GPS coordinates</li>
+              <li>Order history, line items, and payment receipts</li>
+              <li>Reviews and favorites</li>
+            </ul>
+          </div>
+
+          {deleteError && (
+            <div className="p-3 rounded-xl bg-red-100 border border-red-300 text-xs text-red-800">
+              {deleteError}
+            </div>
+          )}
+
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isDeleting}
+              onClick={() => setIsDeleteModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              isLoading={isDeleting}
+              onClick={handleDeleteAccount}
+            >
+              <Trash2 className="w-4 h-4 mr-1.5" />
+              <span>Yes, Delete Account Permanently</span>
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { useCart } from "@/context/CartContext";
 import { useAuth, UserAddress } from "@/context/AuthContext";
 import { Button } from "@/components/ui/Button";
 import { LocationModal } from "@/components/ui/LocationModal";
+import { DynamicPaymentModal } from "@/components/payment/DynamicPaymentModal";
 import {
   MapPin,
   CreditCard,
@@ -36,6 +37,12 @@ export default function CheckoutPage() {
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [upiOrderData, setUpiOrderData] = useState<{
+    orderId: string;
+    orderNumber: string;
+    amountRupees: number;
+  } | null>(null);
+  const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
 
   // Redirect if cart is empty
   useEffect(() => {
@@ -94,20 +101,42 @@ export default function CheckoutPage() {
     setIsSubmitting(true);
     setErrorMessage("");
 
+    // If an unpaid order already exists from this checkout session and user switched to COD,
+    // update that existing order rather than creating a duplicate order!
+    if (activeOrderId && paymentMethod === "COD") {
+      try {
+        const switchRes = await fetch(`/api/orders/${activeOrderId}/switch-cod`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+
+        const switchData = await switchRes.json().catch(() => ({}));
+
+        if (switchRes.ok && switchData.success) {
+          clearCart();
+          router.push(`/account/orders/${activeOrderId}`);
+          return;
+        }
+      } catch {
+        // Continue to standard handler if switch fails
+      }
+    }
+
     try {
       const payload = {
+        existingOrderId: activeOrderId || undefined,
         items: items.map((i) => ({
           productId: i.productId,
           variantId: i.variantId,
           quantity: i.quantity,
           customizations: i.customizations,
         })),
-        addressId: selectedAddress.id.startsWith("guest_") ? undefined : selectedAddress.id,
-        customAddress: selectedAddress.id.startsWith("guest_")
+        addressId: selectedAddress.id && !selectedAddress.id.startsWith("guest_") ? selectedAddress.id : undefined,
+        customAddress: (!selectedAddress.id || selectedAddress.id.startsWith("guest_"))
           ? {
-              label: selectedAddress.label,
+              label: selectedAddress.label || "Home",
               addressLine: selectedAddress.addressLine,
-              locality: selectedAddress.locality,
+              locality: selectedAddress.locality || "Mulbagal",
               city: "Mulbagal",
               latitude: selectedAddress.latitude,
               longitude: selectedAddress.longitude,
@@ -124,7 +153,7 @@ export default function CheckoutPage() {
         body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
         setErrorMessage(data.error || "Failed to place order. Please review your cart.");
@@ -132,7 +161,21 @@ export default function CheckoutPage() {
         return;
       }
 
-      // Success: clear cart and redirect to order tracking page
+      // Track the created order ID so switching to COD never creates a duplicate
+      setActiveOrderId(data.order.id);
+
+      // If user selected Online Payment (Prepaid), prompt dynamic UPI payment modal
+      if (paymentMethod !== "COD") {
+        setIsSubmitting(false);
+        setUpiOrderData({
+          orderId: data.order.id,
+          orderNumber: data.order.orderNumber,
+          amountRupees: data.order.totalMinor / 100,
+        });
+        return;
+      }
+
+      // COD: clear cart and redirect to order tracking page
       clearCart();
       router.push(`/account/orders/${data.order.id}`);
     } catch {
@@ -244,12 +287,12 @@ export default function CheckoutPage() {
                 </div>
               </button>
 
-              {/* UPI option */}
+              {/* Online Payment (Prepaid) option */}
               <button
                 type="button"
-                onClick={() => setPaymentMethod("UPI")}
+                onClick={() => setPaymentMethod("ONLINE")}
                 className={`p-4 rounded-xl border text-left transition-all flex items-start gap-3 ${
-                  paymentMethod === "UPI"
+                  paymentMethod !== "COD"
                     ? "border-amberGold-400 bg-amberGold-50/50 ring-1 ring-amberGold-400"
                     : "border-cream-300 bg-cream-50 hover:bg-cream-100"
                 }`}
@@ -258,14 +301,14 @@ export default function CheckoutPage() {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-charcoal-700">
-                      UPI / Google Pay / PhonePe
+                      Online Payment (Prepaid)
                     </span>
                     <span className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-800 font-bold">
-                      FREE
+                      FREE &bull; FASTEST
                     </span>
                   </div>
                   <p className="text-[11px] text-charcoal-500 mt-1">
-                    Pay directly via QR or UPI without extra fee.
+                    Razorpay Gateway: UPI (GPay/PhonePe), QR, Cards &amp; Netbanking (Auto-validated).
                   </p>
                 </div>
               </button>
@@ -368,8 +411,15 @@ export default function CheckoutPage() {
               </Button>
             </div>
 
-            <p className="text-[10px] text-charcoal-400 text-center">
-              By confirming, your order is routed directly to our Mulbagal prep station.
+            <p className="text-[10px] text-charcoal-500 text-center leading-relaxed">
+              By placing this order, you agree to our{" "}
+              <Link href="/terms-and-conditions" className="underline font-medium text-amberGold-600" target="_blank">
+                Terms
+              </Link>{" "}
+              and acknowledge our{" "}
+              <Link href="/cancellation-refund-policy" className="underline font-medium text-amberGold-600" target="_blank">
+                Cancellation &amp; Refund Policy
+              </Link>.
             </p>
           </div>
         </div>
@@ -379,6 +429,39 @@ export default function CheckoutPage() {
         isOpen={isLocationModalOpen}
         onClose={() => setIsLocationModalOpen(false)}
       />
+
+      {upiOrderData && (
+        <DynamicPaymentModal
+          isOpen={true}
+          orderId={upiOrderData.orderId}
+          orderNumber={upiOrderData.orderNumber}
+          amountRupees={upiOrderData.amountRupees}
+          onClose={() => setUpiOrderData(null)}
+          onSwitchToCod={async (orderIdToSwitch) => {
+            try {
+              const switchRes = await fetch(`/api/orders/${orderIdToSwitch}/switch-cod`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+              });
+              const switchData = await switchRes.json().catch(() => ({}));
+              if (switchRes.ok && switchData.success) {
+                clearCart();
+                setUpiOrderData(null);
+                router.push(`/account/orders/${orderIdToSwitch}`);
+              } else {
+                setErrorMessage(switchData.error || "Failed to switch to COD.");
+              }
+            } catch {
+              setErrorMessage("Network issue switching to COD.");
+            }
+          }}
+          onSuccess={(finalOrderId) => {
+            clearCart();
+            setUpiOrderData(null);
+            router.push(`/account/orders/${finalOrderId}`);
+          }}
+        />
+      )}
     </div>
   );
 }

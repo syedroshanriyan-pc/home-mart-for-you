@@ -15,17 +15,17 @@ export async function generateMetadata({
     include: { variants: true },
   });
 
-  if (!product) return { title: "Product Not Found | Fresh Chicken" };
+  if (!product) return { title: "Product Not Found | homemart4u" };
 
   const minPrice = product.variants[0]?.priceMinor ? product.variants[0].priceMinor / 100 : 0;
 
   return {
-    title: `${product.name} | Fresh Chicken Delivery Mulbagal`,
+    title: `${product.name} | homemart4u Mulbagal`,
     description:
       product.description ||
-      `Order fresh ${product.name} online in Mulbagal starting at ₹${minPrice}. Precision cuts and ~20-minute delivery.`,
+      `Order ${product.name} online in Mulbagal starting at ₹${minPrice}. Fast ~20-minute delivery from Srinivaspur Road.`,
     openGraph: {
-      title: `${product.name} | Fresh Chicken Mulbagal`,
+      title: `${product.name} | homemart4u Mulbagal`,
       description: product.description || `Order ${product.name} in Mulbagal.`,
       images: product.imageUrl ? [product.imageUrl] : [],
     },

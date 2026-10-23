@@ -5,8 +5,8 @@ import { OffersClient } from "./OffersClient";
 export const revalidate = 60;
 
 export const metadata = {
-  title: "Special Offers & Coupons | Fresh Chicken Mulbagal",
-  description: "Exclusive discount vouchers, promo codes, and free delivery offers on farm fresh tender chicken and seafood in Mulbagal.",
+  title: "Special Offers & Coupons | homemart4u Mulbagal",
+  description: "Exclusive discount vouchers, promo codes, and free delivery offers on fresh groceries and halal meats from homemart4u in Mulbagal.",
 };
 
 export default async function OffersPage() {
@@ -25,7 +25,7 @@ export default async function OffersPage() {
           Active Offers & Coupons
         </h1>
         <p className="text-xs text-charcoal-500 mt-1 max-w-xl">
-          Apply these verified discount codes during checkout to save on your fresh chicken delivery in Mulbagal.
+          Apply these verified discount codes during checkout to save on your groceries and fresh meat orders from homemart4u Mulbagal.
         </p>
       </div>
 

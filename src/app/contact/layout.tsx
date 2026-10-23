@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Contact & Store Location | Fresh Chicken Mulbagal",
+  title: "Contact & Store Location | homemart4u Mulbagal",
   description:
-    "Get in touch with Fresh Chicken in Mulbagal. Contact us by phone (+91 98450 12345), email, or visit our retail processing hub near Clock Tower, Mulbagal.",
+    "Get in touch with homemart4u in Mulbagal. Contact us by phone (+91 90355 26638), email (support.homemart4u@gmail.com), or visit our hub at Srinivaspur Road, Mulbagal 563131.",
 };
 
 export default function ContactLayout({

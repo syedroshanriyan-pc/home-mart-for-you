@@ -12,15 +12,9 @@ export async function GET(
   try {
     const { id } = await params;
 
-    // Search by orderId or payment id or orderNumber
-    const payment = await prisma.payment.findFirst({
-      where: {
-        OR: [
-          { orderId: id },
-          { id },
-          { order: { orderNumber: id } },
-        ],
-      },
+    // Fast-path: Direct lookup by unique orderId (indexed)
+    let payment = await prisma.payment.findUnique({
+      where: { orderId: id },
       include: {
         order: {
           select: {
@@ -34,6 +28,26 @@ export async function GET(
         },
       },
     });
+
+    if (!payment) {
+      payment = await prisma.payment.findFirst({
+        where: {
+          OR: [{ id }, { order: { orderNumber: id } }],
+        },
+        include: {
+          order: {
+            select: {
+              id: true,
+              userId: true,
+              orderNumber: true,
+              totalMinor: true,
+              status: true,
+              placedAt: true,
+            },
+          },
+        },
+      });
+    }
 
     if (!payment) {
       return NextResponse.json({ error: "Payment record not found" }, { status: 404 });
@@ -120,6 +134,36 @@ export async function GET(
         }
       }
 
+      // Auto-reconciliation simulation for development and testing environments
+      const isSimulation = process.env.ORDER_SIMULATION_ENABLED === "true";
+      if (isSimulation && currentStatus === "PENDING") {
+        const sessionAge = Date.now() - new Date(payment.updatedAt || payment.createdAt).getTime();
+        if (sessionAge >= 2500) {
+          const autoUtr = `${new Date().getFullYear() % 10}${Date.now().toString().slice(-11)}`;
+          await prisma.$transaction(async (tx) => {
+            await tx.payment.update({
+              where: { id: payment.id },
+              data: {
+                status: "COMPLETED",
+                upiTxnRef: autoUtr,
+                providerReference: autoUtr,
+                updatedAt: new Date(),
+              },
+            });
+            if (payment.order.status === "PLACED") {
+              await tx.order.update({
+                where: { id: payment.orderId },
+                data: { status: "CONFIRMED", confirmedAt: new Date() },
+              });
+            }
+          });
+          currentStatus = "COMPLETED";
+          orderStatus = "CONFIRMED";
+          upiTxnRef = autoUtr;
+          providerReference = autoUtr;
+        }
+      }
+
       const elapsedMs = Date.now() - new Date(payment.createdAt).getTime();
 
       // If validity expired (5 minutes = 300,000ms as requested), auto-mark as FAILED
@@ -169,6 +213,10 @@ export async function GET(
         verificationReceipt,
         verifiedAt: new Date().toISOString(),
         updatedAt: payment.updatedAt,
+      },
+    }, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
       },
     });
   } catch (error: any) {

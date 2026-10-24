@@ -200,8 +200,11 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
 
   // Helper to determine accurate launch URL per platform
   const getAppTargetUrl = (appName: string, primaryUrl: string, androidIntentUrl?: string): string => {
-    if (isAndroid() && androidIntentUrl) {
-      return androidIntentUrl;
+    if (isAndroid()) {
+      if (appName === "Google Pay") {
+        return androidIntentUrl || `tez://upi/pay?${(intentLinks?.genericUrl || "").replace("upi://pay?", "")}`;
+      }
+      return androidIntentUrl || primaryUrl || intentLinks?.genericUrl || "#";
     }
     return primaryUrl || intentLinks?.genericUrl || "#";
   };
@@ -214,7 +217,6 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
     setActiveApp(appName);
     setActiveTargetUrl(targetUrl);
     setLaunchingApp(appName);
-    setPaymentStatus("AWAITING_APP");
     setErrorMessage("");
 
     if (!isMobile()) {
@@ -222,24 +224,18 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
       setErrorMessage("Opening UPI app link. If on desktop, please open this link on your mobile phone or use Cash on Delivery.");
     }
 
+    // Direct browser navigation - prompts Android/iOS OS to launch the respective UPI application immediately
     try {
-      // Dispatch via anchor click to ensure browser treats it as direct user navigation
-      const a = document.createElement("a");
-      a.href = targetUrl;
-      a.target = "_top";
-      a.rel = "noopener noreferrer";
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        if (document.body.contains(a)) document.body.removeChild(a);
-      }, 500);
-    } catch {
       window.location.href = targetUrl;
-    } finally {
-      setTimeout(() => {
-        setLaunchingApp(null);
-      }, 1500);
+    } catch (err) {
+      console.warn("Direct intent launch failed:", err);
     }
+
+    // Defer transitioning to AWAITING_APP so the browser completes launching the intent first
+    setTimeout(() => {
+      setPaymentStatus("AWAITING_APP");
+      setLaunchingApp(null);
+    }, 450);
   };
 
   const checkPaymentStatusManual = async () => {
@@ -467,6 +463,16 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
                   href={activeTargetUrl || intentLinks?.genericUrl || "#"}
                   target="_top"
                   rel="noopener noreferrer"
+                  onClick={(e) => {
+                    const target = activeTargetUrl || intentLinks?.genericUrl;
+                    if (target && target !== "#") {
+                      try {
+                        window.location.href = target;
+                      } catch {
+                        // Let default href proceed
+                      }
+                    }
+                  }}
                   className="w-full py-3 px-4 rounded-xl font-bold text-xs sm:text-sm bg-stone-900 hover:bg-stone-800 active:scale-[0.98] text-white shadow-md flex items-center justify-center gap-2 transition"
                 >
                   <ExternalLink className="w-4 h-4" />

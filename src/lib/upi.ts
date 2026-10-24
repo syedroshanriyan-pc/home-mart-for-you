@@ -65,16 +65,16 @@ export function generateUpiIntentLinks(details: UpiPaymentDetails): UpiIntentLin
     rawUpiUrl: upiUri,
     // Google Pay direct intents
     gpayUrl: `gpay://upi/pay?${queryString}`,
-    androidGpayIntent: `intent://pay?${queryString}#Intent;action=android.intent.action.VIEW;scheme=upi;package=com.google.android.apps.nbu.paisa.user;S.browser_fallback_url=${encodeURIComponent(upiUri)};end`,
+    androidGpayIntent: `intent://pay?${queryString}#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;end`,
     // PhonePe direct intents
     phonepeUrl: `phonepe://pay?${queryString}`,
-    androidPhonePeIntent: `intent://pay?${queryString}#Intent;action=android.intent.action.VIEW;scheme=upi;package=com.phonepe.app;S.browser_fallback_url=${encodeURIComponent(upiUri)};end`,
+    androidPhonePeIntent: `intent://pay?${queryString}#Intent;scheme=upi;package=com.phonepe.app;end`,
     // Paytm direct intents
     paytmUrl: `paytmmp://pay?${queryString}`,
-    androidPaytmIntent: `intent://pay?${queryString}#Intent;action=android.intent.action.VIEW;scheme=upi;package=net.one97.paytm;S.browser_fallback_url=${encodeURIComponent(upiUri)};end`,
+    androidPaytmIntent: `intent://pay?${queryString}#Intent;scheme=upi;package=net.one97.paytm;end`,
     // BHIM direct intents
     bhimUrl: `upi://pay?${queryString}`,
-    androidBhimIntent: `intent://pay?${queryString}#Intent;action=android.intent.action.VIEW;scheme=upi;package=in.org.npci.upiapp;S.browser_fallback_url=${encodeURIComponent(upiUri)};end`,
+    androidBhimIntent: `intent://pay?${queryString}#Intent;scheme=upi;package=in.org.npci.upiapp;end`,
     // Universal intent launcher
     genericUrl: upiUri,
   };

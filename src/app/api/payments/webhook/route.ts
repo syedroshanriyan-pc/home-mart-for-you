@@ -106,6 +106,54 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Reconcile amount if supplied in webhook (paise minor units or rupees)
+    const payloadAmountMinor =
+      body.amountMinor ??
+      rzpPayment?.amount ??
+      (body.amount != null ? Math.round(Number(body.amount) * 100) : null);
+
+    if (payloadAmountMinor != null && payloadAmountMinor < payment.amountMinor) {
+      return NextResponse.json(
+        {
+          error: `Payment amount mismatch: Webhook received ${payloadAmountMinor} paise, required ${payment.amountMinor} paise.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Reconcile currency
+    const payloadCurrency = body.currency || rzpPayment?.currency;
+    if (payloadCurrency && payloadCurrency.toUpperCase() !== "INR") {
+      return NextResponse.json(
+        { error: `Currency mismatch: Expected INR, received ${payloadCurrency}` },
+        { status: 400 }
+      );
+    }
+
+    // Enforce business rule: do not blindly fulfill cancelled orders
+    if (payment.order.status === "CANCELLED") {
+      return NextResponse.json(
+        { error: "Order is cancelled. Webhook received post-cancellation flagged for reconciliation." },
+        { status: 409 }
+      );
+    }
+
+    // Check if txnRef has already been credited to another order
+    if (txnRef) {
+      const duplicateTxn = await prisma.payment.findFirst({
+        where: {
+          upiTxnRef: txnRef,
+          orderId: { not: payment.orderId },
+        },
+      });
+      if (duplicateTxn) {
+        return NextResponse.json(
+          { error: "Transaction reference is already assigned to a different order." },
+          { status: 409 }
+        );
+      }
+    }
+
     const isSuccess =
       status === "SUCCESS" ||
       status === "COMPLETED" ||

@@ -22,7 +22,7 @@ import {
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const {
     items,
     couponCode,
@@ -50,6 +50,18 @@ export default function CheckoutPage() {
       router.push("/cart");
     }
   }, [items, router]);
+
+  // Wait for session verification before rendering prompt
+  if (authLoading) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-24 text-center space-y-4">
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cream-100 text-charcoal-500 text-xs font-medium animate-pulse">
+          <ShieldCheck className="w-4 h-4 text-amberGold-500" />
+          <span>Verifying account status...</span>
+        </div>
+      </div>
+    );
+  }
 
   // If user is not logged in, prompt or redirect to login/register with callbackUrl
   if (!user) {

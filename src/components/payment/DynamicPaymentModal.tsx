@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import {
   RefreshCw,
@@ -9,10 +9,7 @@ import {
   ChevronRight,
   X,
   ArrowLeft,
-  Copy,
-  Check,
   ShieldCheck,
-  AlertCircle,
   XCircle,
   CheckCircle2,
   PhoneCall,
@@ -41,35 +38,49 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
   onSwitchToCod,
 }) => {
   const [loading, setLoading] = useState(true);
-  const [isVerifying, setIsVerifying] = useState(false);
   const [isSwitchingCod, setIsSwitchingCod] = useState(false);
-  const [copiedUpi, setCopiedUpi] = useState(false);
-  const [copiedOrder, setCopiedOrder] = useState(false);
+  const [launchingApp, setLaunchingApp] = useState<string | null>(null);
 
   // Intent links state
   const [intentLinks, setIntentLinks] = useState<{
     gpayUrl: string;
     phonepeUrl: string;
     paytmUrl: string;
+    bhimUrl?: string;
     genericUrl: string;
+    androidGpayIntent?: string;
+    androidPhonePeIntent?: string;
+    androidPaytmIntent?: string;
+    androidBhimIntent?: string;
   } | null>(null);
 
-  // Payment states: PENDING | AWAITING_APP | PENDING_VERIFICATION | COMPLETED | FAILED
+  // Payment states: PENDING | AWAITING_APP | COMPLETED | FAILED
   const [paymentStatus, setPaymentStatus] = useState<
-    "PENDING" | "AWAITING_APP" | "PENDING_VERIFICATION" | "COMPLETED" | "FAILED"
+    "PENDING" | "AWAITING_APP" | "COMPLETED" | "FAILED"
   >("PENDING");
 
   const [activeApp, setActiveApp] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [failureReason, setFailureReason] = useState("");
-  const [countdown, setCountdown] = useState(300); // 5-minute validity
-  const [utrNumber, setUtrNumber] = useState("");
-  const [showManualUtr, setShowManualUtr] = useState(false);
+  const [countdown, setCountdown] = useState(300); // 5-minute validity synchronized from backend
   const [redirectCountdown, setRedirectCountdown] = useState(3);
   const [confirmedTxnRef, setConfirmedTxnRef] = useState<string>("");
 
-  const merchantVpa = "9844797374@mbk";
-  const merchantName = "homemart4u";
+  // Customer support phone number configuration
+  const rawSupportPhone =
+    process.env.NEXT_PUBLIC_SUPPORT_PHONE_NUMBER ||
+    process.env.NEXT_PUBLIC_SHOP_PHONE ||
+    "+91 90355 26638";
+  const cleanDigits = rawSupportPhone.replace(/[^\d+]/g, "");
+  const supportTel = cleanDigits ? `tel:${cleanDigits}` : "tel:+919035526638";
+  const supportPhoneDisplay = rawSupportPhone || "+91 90355 26638";
+
+  // Device detection helper
+  const isAndroid = () =>
+    typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent);
+  const isIos = () =>
+    typeof navigator !== "undefined" && /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const isMobile = () => isAndroid() || isIos();
 
   // Initialize payment session on modal open
   const initPaymentSession = async () => {
@@ -77,9 +88,8 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
     setPaymentStatus("PENDING");
     setErrorMessage("");
     setFailureReason("");
-    setUtrNumber("");
     setActiveApp(null);
-    setCountdown(300);
+    setLaunchingApp(null);
 
     try {
       const res = await fetch("/api/payments/dynamic-qr", {
@@ -93,8 +103,19 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
           gpayUrl: data.intentLinks?.gpayUrl || data.rawUpiUrl,
           phonepeUrl: data.intentLinks?.phonepeUrl || data.rawUpiUrl,
           paytmUrl: data.intentLinks?.paytmUrl || data.rawUpiUrl,
+          bhimUrl: data.intentLinks?.bhimUrl || data.rawUpiUrl,
           genericUrl: data.rawUpiUrl,
+          androidGpayIntent: data.intentLinks?.androidGpayIntent,
+          androidPhonePeIntent: data.intentLinks?.androidPhonePeIntent,
+          androidPaytmIntent: data.intentLinks?.androidPaytmIntent,
+          androidBhimIntent: data.intentLinks?.androidBhimIntent,
         });
+
+        if (typeof data.expiresInSeconds === "number" && data.expiresInSeconds > 0) {
+          setCountdown(data.expiresInSeconds);
+        } else {
+          setCountdown(300);
+        }
       } else {
         setErrorMessage(data.error || "Failed to initialize payment gateway.");
       }
@@ -155,7 +176,7 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
     return () => clearInterval(redTimer);
   }, [paymentStatus, orderId, onSuccess]);
 
-  // 5-minute session countdown timer
+  // Session countdown timer synchronized with backend session
   useEffect(() => {
     if (!isOpen || paymentStatus === "COMPLETED" || paymentStatus === "FAILED") return;
 
@@ -164,7 +185,7 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
         if (prev <= 1) {
           clearInterval(timer);
           setPaymentStatus("FAILED");
-          setFailureReason("Payment session timed out (5-minute window). You can retry or switch to COD.");
+          setFailureReason("Payment session timed out (5-minute window). You can retry or switch to Cash on Delivery (COD).");
           return 0;
         }
         return prev - 1;
@@ -174,62 +195,40 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
     return () => clearInterval(timer);
   }, [isOpen, paymentStatus]);
 
-  // Launch UPI App
-  const handleLaunchApp = (appName: string, intentUrl: string) => {
+  // Launch UPI App with device-appropriate intent handling
+  const handleLaunchApp = (appName: string, primaryUrl: string, androidIntentUrl?: string) => {
+    if (launchingApp) return; // Prevent duplicate rapid initiation
+
     setActiveApp(appName);
+    setLaunchingApp(appName);
     setPaymentStatus("AWAITING_APP");
     setErrorMessage("");
 
-    // Trigger device native intent
-    window.location.href = intentUrl;
-  };
+    let targetUrl = primaryUrl;
 
-  // Manual UTR submission fallback
-  const handleVerifyUtr = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const cleanUtr = utrNumber.trim();
-
-    if (!cleanUtr) {
-      setErrorMessage("Please enter the 12-digit UTR from your bank receipt.");
-      return;
+    // Use Android package intent on Android for direct app launch
+    if (isAndroid() && androidIntentUrl) {
+      targetUrl = androidIntentUrl;
+    } else if (isIos() || !isAndroid()) {
+      targetUrl = primaryUrl;
     }
 
-    if (cleanUtr.length !== 12 || !/^\d{12}$/.test(cleanUtr)) {
-      setErrorMessage("UTR must be exactly 12 numeric digits (found in Google Pay/PhonePe receipt).");
-      return;
+    if (!isMobile()) {
+      // Desktop helper notice
+      setErrorMessage("Opening UPI app link. If on desktop, please open this link on your mobile phone or use Cash on Delivery.");
     }
-
-    setIsVerifying(true);
-    setErrorMessage("");
 
     try {
-      const statusRes = await fetch(`/api/payments/${orderId}/status`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          status: "COMPLETED",
-          upiTxnRef: cleanUtr,
-          upiApp: activeApp || "UPI_INTENT",
-        }),
-      });
-
-      const data = await statusRes.json().catch(() => ({}));
-
-      if (statusRes.ok && data.success) {
-        setConfirmedTxnRef(cleanUtr);
-        setPaymentStatus("COMPLETED");
-      } else {
-        if (data.isDuplicate || data.isExpired) {
-          setPaymentStatus("FAILED");
-          setFailureReason(data.error);
-        } else {
-          setErrorMessage(data.error || "Unable to verify this UTR with bank records.");
-        }
-      }
+      window.location.href = targetUrl;
     } catch {
-      setErrorMessage("Network issue checking reference. Please try again.");
+      // Fallback to universal generic UPI URL
+      if (intentLinks?.genericUrl && targetUrl !== intentLinks.genericUrl) {
+        window.location.href = intentLinks.genericUrl;
+      }
     } finally {
-      setIsVerifying(false);
+      setTimeout(() => {
+        setLaunchingApp(null);
+      }, 1500);
     }
   };
 
@@ -244,12 +243,6 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
     } finally {
       setIsSwitchingCod(false);
     }
-  };
-
-  const copyUpiId = () => {
-    navigator.clipboard?.writeText(merchantVpa);
-    setCopiedUpi(true);
-    setTimeout(() => setCopiedUpi(false), 2000);
   };
 
   const formatCountdown = (secs: number) => {
@@ -399,15 +392,20 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
                 )}
               </div>
 
-              {/* Customer Support Contact */}
-              <div className="pt-4 border-t border-stone-100 text-center">
-                <span className="text-[11px] text-stone-500 block mb-1">Need help completing payment?</span>
+              {/* Customer Support Section */}
+              <div className="pt-4 border-t border-stone-100 text-center space-y-1.5">
+                <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-stone-800">
+                  <PhoneCall className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Payment issue? Raise a complaint</span>
+                </div>
+                <p className="text-[11px] text-stone-500 leading-relaxed">
+                  Payment deducted, pending, or not reflected? Contact Homemart4u Support for assistance with your order.
+                </p>
                 <a
-                  href="tel:+919035526638"
+                  href={supportTel}
                   className="inline-flex items-center gap-1.5 text-xs font-bold text-stone-800 hover:text-amber-700 transition"
                 >
-                  <PhoneCall className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Call Store Support: +91 90355 26638</span>
+                  <span>Call Store Support: {supportPhoneDisplay}</span>
                 </a>
               </div>
             </div>
@@ -437,90 +435,71 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
                 <span>Checking payment status live with bank network...</span>
               </div>
 
-              {/* Fallback UTR Entry if user already completed payment */}
-              <div className="pt-3 border-t border-stone-100 text-left space-y-2">
+              {/* Navigation options */}
+              <div className="flex items-center justify-between pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowManualUtr(!showManualUtr)}
-                  className="text-xs font-bold text-stone-700 hover:text-stone-900 flex items-center justify-between w-full"
+                  onClick={() => setPaymentStatus("PENDING")}
+                  className="text-xs text-stone-500 hover:text-stone-800 flex items-center gap-1"
                 >
-                  <span>Already paid in {activeApp}? Enter UTR manually</span>
-                  <span>{showManualUtr ? "▲" : "▼"}</span>
+                  <ArrowLeft className="w-3.5 h-3.5" /> Select another app
                 </button>
 
-                {showManualUtr && (
-                  <form onSubmit={handleVerifyUtr} className="space-y-2 pt-1 animate-fade-in">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={utrNumber}
-                      onChange={(e) => setUtrNumber(e.target.value.replace(/\D/g, "").slice(0, 12))}
-                      placeholder="Enter 12-digit UTR from receipt"
-                      maxLength={12}
-                      className="w-full px-3 py-2 text-xs border border-stone-300 rounded-xl font-mono text-center tracking-wider focus:outline-hidden focus:ring-2 focus:ring-stone-600"
-                    />
-                    <button
-                      type="submit"
-                      disabled={isVerifying || utrNumber.length !== 12}
-                      className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs transition"
-                    >
-                      {isVerifying ? "Verifying with Bank..." : "Verify Reference"}
-                    </button>
-                  </form>
-                )}
-
-                <div className="flex items-center justify-between pt-2">
+                {onSwitchToCod && (
                   <button
                     type="button"
-                    onClick={() => setPaymentStatus("PENDING")}
-                    className="text-xs text-stone-500 hover:text-stone-800 flex items-center gap-1"
+                    onClick={handleSwitchToCodDirect}
+                    disabled={isSwitchingCod}
+                    className="text-xs text-amber-700 font-bold hover:underline"
                   >
-                    <ArrowLeft className="w-3.5 h-3.5" /> Select another app
+                    Switch to COD &rarr;
                   </button>
+                )}
+              </div>
 
-                  {onSwitchToCod && (
-                    <button
-                      type="button"
-                      onClick={handleSwitchToCodDirect}
-                      disabled={isSwitchingCod}
-                      className="text-xs text-amber-700 font-bold hover:underline"
-                    >
-                      Switch to COD &rarr;
-                    </button>
-                  )}
+              {/* Customer Support Telephone Section (Replacing manual UTR entry) */}
+              <div className="pt-4 border-t border-stone-100 text-left space-y-2">
+                <div className="flex items-center gap-1.5 text-stone-800 font-bold text-xs">
+                  <PhoneCall className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Payment issue? Raise a complaint</span>
                 </div>
+                <p className="text-[11px] text-stone-500 leading-relaxed">
+                  Payment deducted, pending, or not reflected? Contact Homemart4u Support for assistance with your order #{orderNumber}.
+                </p>
+                <a
+                  href={supportTel}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 px-3 py-2 rounded-xl border border-amber-200 transition"
+                >
+                  <PhoneCall className="w-3.5 h-3.5" />
+                  <span>Call Store Support: {supportPhoneDisplay}</span>
+                </a>
               </div>
             </div>
           ) : (
             /* ---------------------------------------------------------- */
-            /* 4. DEFAULT UPI INTENT APP SELECTION (NO DYNAMIC QR)         */
+            /* 4. DEFAULT UPI INTENT APP SELECTION (UPI ID HIDDEN)         */
             /* ---------------------------------------------------------- */
             <div className="space-y-4 animate-fade-in">
-              {/* Payment Summary Box */}
-              <div className="bg-stone-50 rounded-2xl p-3.5 border border-stone-200 flex items-center justify-between">
+              {/* Payment Summary Box (UPI ID Hidden from customer-facing UI) */}
+              <div className="bg-stone-50 rounded-2xl p-4 border border-stone-200 flex items-center justify-between">
                 <div>
                   <span className="text-[10px] text-stone-500 uppercase font-mono font-bold block">
                     Amount to Pay
                   </span>
-                  <span className="text-xl font-mono font-extrabold text-stone-900">
+                  <span className="text-2xl font-mono font-extrabold text-stone-900">
                     ₹{amountRupees.toFixed(2)}
                   </span>
                 </div>
                 <div className="text-right">
                   <span className="text-[10px] text-stone-500 uppercase font-mono block">
-                    Verified Merchant
+                    Order Number
                   </span>
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs font-mono font-bold text-stone-800">{merchantVpa}</span>
-                    <button
-                      onClick={copyUpiId}
-                      className="p-1 text-stone-400 hover:text-stone-700 transition"
-                      title="Copy UPI ID"
-                    >
-                      {copiedUpi ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                    </button>
-                  </div>
+                  <span className="text-xs font-mono font-bold text-stone-800">
+                    #{orderNumber}
+                  </span>
+                  <span className="block text-[10px] text-emerald-600 font-semibold mt-0.5">
+                    ● Encrypted &amp; Verified
+                  </span>
                 </div>
               </div>
 
@@ -534,8 +513,15 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
                 {/* Google Pay */}
                 <button
                   type="button"
-                  onClick={() => handleLaunchApp("Google Pay", intentLinks?.gpayUrl || intentLinks?.genericUrl || "#")}
-                  className="w-full p-3.5 rounded-2xl border border-stone-200 hover:border-stone-400 bg-white hover:bg-stone-50 transition-all flex items-center justify-between shadow-xs group"
+                  disabled={Boolean(launchingApp)}
+                  onClick={() =>
+                    handleLaunchApp(
+                      "Google Pay",
+                      intentLinks?.gpayUrl || intentLinks?.genericUrl || "#",
+                      intentLinks?.androidGpayIntent
+                    )
+                  }
+                  className="w-full p-3.5 rounded-2xl border border-stone-200 hover:border-stone-400 bg-white hover:bg-stone-50 transition-all flex items-center justify-between shadow-xs group disabled:opacity-60"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-8 relative flex items-center justify-center bg-stone-50 rounded-lg p-1 border border-stone-100">
@@ -558,8 +544,15 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
                 {/* PhonePe */}
                 <button
                   type="button"
-                  onClick={() => handleLaunchApp("PhonePe", intentLinks?.phonepeUrl || intentLinks?.genericUrl || "#")}
-                  className="w-full p-3.5 rounded-2xl border border-stone-200 hover:border-purple-300 bg-white hover:bg-purple-50/20 transition-all flex items-center justify-between shadow-xs group"
+                  disabled={Boolean(launchingApp)}
+                  onClick={() =>
+                    handleLaunchApp(
+                      "PhonePe",
+                      intentLinks?.phonepeUrl || intentLinks?.genericUrl || "#",
+                      intentLinks?.androidPhonePeIntent
+                    )
+                  }
+                  className="w-full p-3.5 rounded-2xl border border-stone-200 hover:border-purple-300 bg-white hover:bg-purple-50/20 transition-all flex items-center justify-between shadow-xs group disabled:opacity-60"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-8 relative flex items-center justify-center bg-stone-50 rounded-lg p-1 border border-stone-100">
@@ -582,8 +575,15 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
                 {/* Paytm */}
                 <button
                   type="button"
-                  onClick={() => handleLaunchApp("Paytm", intentLinks?.paytmUrl || intentLinks?.genericUrl || "#")}
-                  className="w-full p-3.5 rounded-2xl border border-stone-200 hover:border-sky-300 bg-white hover:bg-sky-50/20 transition-all flex items-center justify-between shadow-xs group"
+                  disabled={Boolean(launchingApp)}
+                  onClick={() =>
+                    handleLaunchApp(
+                      "Paytm",
+                      intentLinks?.paytmUrl || intentLinks?.genericUrl || "#",
+                      intentLinks?.androidPaytmIntent
+                    )
+                  }
+                  className="w-full p-3.5 rounded-2xl border border-stone-200 hover:border-sky-300 bg-white hover:bg-sky-50/20 transition-all flex items-center justify-between shadow-xs group disabled:opacity-60"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-8 relative flex items-center justify-center bg-stone-50 rounded-lg p-1 border border-stone-100">
@@ -606,8 +606,15 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
                 {/* Other UPI / BHIM App */}
                 <button
                   type="button"
-                  onClick={() => handleLaunchApp("UPI App", intentLinks?.genericUrl || "#")}
-                  className="w-full p-3.5 rounded-2xl border border-stone-200 hover:border-emerald-300 bg-white hover:bg-emerald-50/20 transition-all flex items-center justify-between shadow-xs group"
+                  disabled={Boolean(launchingApp)}
+                  onClick={() =>
+                    handleLaunchApp(
+                      "BHIM / Other UPI App",
+                      intentLinks?.bhimUrl || intentLinks?.genericUrl || "#",
+                      intentLinks?.androidBhimIntent
+                    )
+                  }
+                  className="w-full p-3.5 rounded-2xl border border-stone-200 hover:border-emerald-300 bg-white hover:bg-emerald-50/20 transition-all flex items-center justify-between shadow-xs group disabled:opacity-60"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-8 relative flex items-center justify-center bg-emerald-50 rounded-lg p-1 border border-emerald-100 text-emerald-700 font-black text-xs font-mono">
@@ -615,51 +622,29 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
                     </div>
                     <div className="text-left">
                       <span className="text-xs font-bold text-stone-900 block">BHIM / Any Other UPI App</span>
-                      <span className="text-[10px] text-stone-400">Choose from all apps installed on your device</span>
+                      <span className="text-[10px] text-stone-400">Choose from all UPI apps on your device</span>
                     </div>
                   </div>
                   <ChevronRight className="w-4 h-4 text-stone-400 group-hover:text-emerald-700 transition" />
                 </button>
               </div>
 
-              {/* Collapsible Manual Reference Fallback */}
-              <div className="pt-2 border-t border-stone-100">
-                <button
-                  type="button"
-                  onClick={() => setShowManualUtr(!showManualUtr)}
-                  className="text-[11px] font-bold text-stone-500 hover:text-stone-800 flex items-center justify-between w-full py-1"
+              {/* Customer Support Complaint Section (Replacing manual UTR entry) */}
+              <div className="pt-3 border-t border-stone-100 text-left space-y-1.5">
+                <div className="flex items-center gap-1.5 text-stone-800 font-bold text-xs">
+                  <PhoneCall className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Payment issue? Raise a complaint</span>
+                </div>
+                <p className="text-[11px] text-stone-500 leading-relaxed">
+                  Payment deducted, pending, or not reflected? Contact Homemart4u Support for assistance with your order.
+                </p>
+                <a
+                  href={supportTel}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-xl border border-amber-200 transition"
                 >
-                  <span>Already sent payment? Enter 12-digit UTR manually</span>
-                  <span>{showManualUtr ? "▲" : "▼"}</span>
-                </button>
-
-                {showManualUtr && (
-                  <form onSubmit={handleVerifyUtr} className="space-y-2 pt-2 animate-fade-in">
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        value={utrNumber}
-                        onChange={(e) => {
-                          setUtrNumber(e.target.value.replace(/\D/g, "").slice(0, 12));
-                          setErrorMessage("");
-                        }}
-                        placeholder="12-digit UTR reference"
-                        maxLength={12}
-                        className="flex-1 px-3 py-2 text-xs border border-stone-300 rounded-xl font-mono text-center tracking-wider focus:outline-hidden focus:ring-1 focus:ring-stone-600 bg-stone-50/50"
-                      />
-                      <Button
-                        type="submit"
-                        variant="primary"
-                        disabled={isVerifying || utrNumber.length !== 12}
-                        className="text-xs bg-emerald-600 hover:bg-emerald-700 font-bold px-4 rounded-xl"
-                      >
-                        {isVerifying ? "Verifying..." : "Verify"}
-                      </Button>
-                    </div>
-                  </form>
-                )}
+                  <PhoneCall className="w-3.5 h-3.5" />
+                  <span>Call Support: {supportPhoneDisplay}</span>
+                </a>
               </div>
 
               {errorMessage && (

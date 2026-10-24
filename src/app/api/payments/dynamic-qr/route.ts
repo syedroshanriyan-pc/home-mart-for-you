@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
     const intentLinks = generateUpiIntentLinks(upiDetails);
     const qrDataUrl = await generateUpiQrDataUrl(upiUri);
 
+    const now = new Date();
     // Save qrPayload and reference on order payment if orderId provided, and stamp active session time
     if (orderId) {
       await prisma.payment.updateMany({
@@ -79,6 +80,8 @@ export async function POST(req: NextRequest) {
       transactionRef,
       rawUpiUrl: upiUri,
       qrDataUrl,
+      expiresInSeconds: 300,
+      sessionTimestamp: now.toISOString(),
       intentLinks: {
         ...intentLinks,
         qrDataUrl,

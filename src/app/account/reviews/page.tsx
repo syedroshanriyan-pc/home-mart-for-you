@@ -7,7 +7,7 @@ import { Star, Clock } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
 export default function UserReviewsPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -17,12 +17,12 @@ export default function UserReviewsPage() {
         .then((res) => res.json())
         .then((d) => setReviews(d.reviews || []))
         .finally(() => setLoading(false));
-    } else {
+    } else if (!authLoading) {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, authLoading]);
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-16 text-center text-xs text-charcoal-500">
         Loading your reviews...

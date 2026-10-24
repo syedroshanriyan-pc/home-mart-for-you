@@ -19,6 +19,18 @@ export const HomePageClientController: React.FC<HomePageClientControllerProps> =
   const [guestViewingStore, setGuestViewingStore] = useState(false);
   const [guestDept, setGuestDept] = useState<"GROCERIES" | "MEAT">("GROCERIES");
 
+  // 0. Wait for session restoration to complete before deciding on storefront vs blog
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-12 text-center">
+        <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-cream-100 text-charcoal-500 text-xs font-medium animate-pulse">
+          <Sparkles className="w-4 h-4 text-amberGold-500" />
+          <span>Restoring session...</span>
+        </div>
+      </div>
+    );
+  }
+
   // 1. If user is logged in, immediately show the main Storefront view (no blog/landing page needed)
   if (user) {
     return (

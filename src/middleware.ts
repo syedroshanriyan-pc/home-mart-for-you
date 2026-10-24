@@ -63,7 +63,20 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const origin = req.headers.get("origin") || "";
   const allowedOrigin = process.env.NEXT_PUBLIC_APP_URL || "";
+  const frontendUrl = process.env.FRONTEND_URL || "";
+  const allowedOriginsEnv = process.env.ALLOWED_ORIGINS || "";
+  const allowedList = [allowedOrigin, frontendUrl, ...allowedOriginsEnv.split(",")].map((s) => s.trim()).filter(Boolean);
   const authSecret = process.env.AUTH_SECRET || "fc_dev_super_secret_jwt_key_2026_mulbagal_secure";
+
+  const isAllowedOrigin =
+    origin.startsWith("http://localhost:") ||
+    origin.startsWith("http://127.0.0.1:") ||
+    origin === req.nextUrl.origin ||
+    (allowedOrigin && origin === allowedOrigin) ||
+    (frontendUrl && origin === frontendUrl) ||
+    origin.endsWith(".vercel.app") ||
+    origin.endsWith(".onrender.com") ||
+    allowedList.includes(origin);
 
   // 0. CSRF Protection for state-changing API endpoints
   if (
@@ -72,11 +85,6 @@ export async function middleware(req: NextRequest) {
     !pathname.startsWith("/api/payments/webhook") // Webhooks use HMAC signature verification
   ) {
     if (origin) {
-      const isAllowedOrigin =
-        origin.startsWith("http://localhost:") ||
-        origin.startsWith("http://127.0.0.1:") ||
-        origin === req.nextUrl.origin ||
-        (allowedOrigin && origin === allowedOrigin);
       if (!isAllowedOrigin) {
         return NextResponse.json(
           { error: "Forbidden: Cross-site request verification failed" },
@@ -89,16 +97,10 @@ export async function middleware(req: NextRequest) {
   // Handle CORS preflight for API routes
   if (req.method === "OPTIONS" && pathname.startsWith("/api/")) {
     const preflightHeaders = new Headers();
-    const isAllowedOrigin =
-      origin &&
-      (origin.startsWith("http://localhost:") ||
-        origin.startsWith("http://127.0.0.1:") ||
-        origin === req.nextUrl.origin ||
-        (allowedOrigin && origin === allowedOrigin));
-    if (isAllowedOrigin) {
+    if (origin && isAllowedOrigin) {
       preflightHeaders.set("Access-Control-Allow-Origin", origin);
       preflightHeaders.set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-      preflightHeaders.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+      preflightHeaders.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, x-webhook-signature, x-razorpay-signature, x-server-secret");
       preflightHeaders.set("Access-Control-Allow-Credentials", "true");
       preflightHeaders.set("Access-Control-Max-Age", "86400");
     }

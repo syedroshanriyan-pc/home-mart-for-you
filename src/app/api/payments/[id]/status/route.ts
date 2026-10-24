@@ -39,6 +39,16 @@ export async function GET(
       return NextResponse.json({ error: "Payment record not found" }, { status: 404 });
     }
 
+    // Authorization Guard: Prevent cross-customer payment inspection
+    const session = await getSessionUser(req);
+    if (payment.order.userId) {
+      const isOwner = session && session.id === payment.order.userId;
+      const isAdmin = session && (session.role === "ADMIN" || session.role === "SUPER_ADMIN" || session.role === "DELIVERY_AGENT");
+      if (!isOwner && !isAdmin) {
+        return NextResponse.json({ error: "Unauthorized access to order payment details" }, { status: 403 });
+      }
+    }
+
     let currentStatus = payment.status;
     let upiTxnRef = payment.upiTxnRef;
     let providerReference = payment.providerReference;

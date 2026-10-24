@@ -24,7 +24,7 @@ import {
 
 export const Navbar: React.FC = () => {
   const pathname = usePathname();
-  const { user, selectedAddress, logout } = useAuth();
+  const { user, loading, selectedAddress, logout } = useAuth();
   const { itemCount } = useCart();
   const [isLocationOpen, setIsLocationOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -197,7 +197,12 @@ export const Navbar: React.FC = () => {
               </Link>
 
               {/* 4. Account / Profile Button */}
-              {user ? (
+              {loading ? (
+                <div className="p-2 flex items-center gap-1.5 animate-pulse">
+                  <div className="w-6 h-6 rounded-full bg-stone-200" />
+                  <span className="hidden md:inline-block w-12 h-3 bg-stone-200 rounded" />
+                </div>
+              ) : user ? (
                 <div className="relative">
                   <button
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}

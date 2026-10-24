@@ -10,6 +10,18 @@ const nextConfig = {
       },
     ],
   },
+  async rewrites() {
+    const backendUrl = process.env.RENDER_BACKEND_URL || process.env.BACKEND_API_URL;
+    if (backendUrl) {
+      return [
+        {
+          source: "/api/:path*",
+          destination: `${backendUrl.replace(/\/$/, "")}/api/:path*`,
+        },
+      ];
+    }
+    return [];
+  },
   async headers() {
     return [
       {

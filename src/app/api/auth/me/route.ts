@@ -2,11 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
+const NO_CACHE_HEADERS = {
+  "Cache-Control": "private, no-cache, no-store, max-age=0, must-revalidate",
+  Pragma: "no-cache",
+  Expires: "0",
+};
+
 export async function GET(req: NextRequest) {
   try {
     const session = await getSessionUser(req);
     if (!session) {
-      return NextResponse.json({ user: null });
+      return NextResponse.json(
+        { user: null, authenticated: false },
+        { status: 401, headers: NO_CACHE_HEADERS }
+      );
     }
 
     const user = await prisma.user.findUnique({
@@ -18,22 +29,32 @@ export async function GET(req: NextRequest) {
     });
 
     if (!user || user.status !== "ACTIVE") {
-      return NextResponse.json({ user: null });
+      return NextResponse.json(
+        { user: null, authenticated: false, error: "Account inactive or not found" },
+        { status: 401, headers: NO_CACHE_HEADERS }
+      );
     }
 
-    return NextResponse.json({
-      user: {
-        id: user.id,
-        name: user.name,
-        mobile: user.mobile,
-        email: user.email,
-        role: user.role,
-        addresses: user.addresses,
-        deliveryProfile: user.deliveryProfile,
+    return NextResponse.json(
+      {
+        authenticated: true,
+        user: {
+          id: user.id,
+          name: user.name,
+          mobile: user.mobile,
+          email: user.email,
+          role: user.role,
+          addresses: user.addresses,
+          deliveryProfile: user.deliveryProfile,
+        },
       },
-    });
+      { headers: NO_CACHE_HEADERS }
+    );
   } catch (error) {
-    console.error("Auth check error:", error);
-    return NextResponse.json({ user: null });
+    console.error("Auth verification error:", error);
+    return NextResponse.json(
+      { user: null, error: "Internal server error during session verification" },
+      { status: 500, headers: NO_CACHE_HEADERS }
+    );
   }
 }

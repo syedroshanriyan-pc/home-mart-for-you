@@ -1,14 +1,13 @@
 // Service Worker for Fresh Chicken & Groceries PWA
-const CACHE_NAME = "freshchicken-v1";
+const CACHE_NAME = "freshchicken-v2";
 const STATIC_ASSETS = [
-  "/",
-  "/menu",
-  "/cart",
   "/manifest.json",
-  "/icon.svg",
+  "/favicon.svg",
+  "/logo-icon.svg",
+  "/logo.svg",
 ];
 
-// Install event
+// Install event - Precache truly static assets only (no dynamic HTML)
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -20,7 +19,7 @@ self.addEventListener("install", (event) => {
   self.skipWaiting();
 });
 
-// Activate event
+// Activate event - Clean old caches
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
@@ -36,44 +35,51 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// Fetch event (Network first with cache fallback)
+// Fetch event
 self.addEventListener("fetch", (event) => {
-  // Only handle GET requests and skip api/admin/auth requests
+  const url = new URL(event.request.url);
+
+  // Bypass service worker entirely for non-GET, API, authentication, admin, delivery, checkout, and account requests
   if (
     event.request.method !== "GET" ||
-    event.request.url.includes("/api/") ||
-    event.request.url.includes("/admin/") ||
-    event.request.url.includes("/delivery/")
+    url.pathname.startsWith("/api/") ||
+    url.pathname.startsWith("/admin") ||
+    url.pathname.startsWith("/delivery") ||
+    url.pathname.startsWith("/account") ||
+    url.pathname.startsWith("/checkout") ||
+    url.pathname.startsWith("/login") ||
+    url.pathname.startsWith("/register")
   ) {
     return;
   }
 
+  // Only cache static files (scripts, styles, images, fonts, static assets)
+  const isStaticAsset =
+    url.pathname.startsWith("/_next/static/") ||
+    url.pathname.endsWith(".svg") ||
+    url.pathname.endsWith(".png") ||
+    url.pathname.endsWith(".jpg") ||
+    url.pathname.endsWith(".webp") ||
+    url.pathname.endsWith(".ico") ||
+    url.pathname === "/manifest.json";
+
+  if (!isStaticAsset) {
+    // Dynamic navigation/pages: Network-only to prevent stale authentication/session caching
+    return;
+  }
+
   event.respondWith(
-    fetch(event.request)
-      .then((networkResponse) => {
-        // Cache successful responses for static assets
-        if (
-          networkResponse &&
-          networkResponse.status === 200 &&
-          (event.request.url.includes("/_next/static/") ||
-            event.request.url.endsWith(".svg") ||
-            event.request.url.endsWith(".png") ||
-            event.request.url.endsWith(".jpg"))
-        ) {
+    caches.match(event.request).then((cachedResponse) => {
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+      return fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
           const clone = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         }
         return networkResponse;
-      })
-      .catch(() => {
-        return caches.match(event.request).then((cachedResponse) => {
-          if (cachedResponse) return cachedResponse;
-          // Fallback to root if navigating
-          if (event.request.mode === "navigate") {
-            return caches.match("/");
-          }
-          return new Response("Offline", { status: 503, statusText: "Service Unavailable" });
-        });
-      })
+      });
+    })
   );
 });

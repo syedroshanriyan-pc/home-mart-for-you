@@ -15,7 +15,12 @@ export interface UpiIntentLinks {
   gpayUrl: string;
   phonepeUrl: string;
   paytmUrl: string;
+  bhimUrl: string;
   genericUrl: string;
+  androidGpayIntent?: string;
+  androidPhonePeIntent?: string;
+  androidPaytmIntent?: string;
+  androidBhimIntent?: string;
   qrDataUrl?: string;
 }
 
@@ -45,7 +50,7 @@ export function buildUpiUri(details: UpiPaymentDetails): string {
 }
 
 /**
- * Generates app-specific intent URLs for Google Pay, PhonePe, Paytm, and standard UPI
+ * Generates app-specific intent URLs for Google Pay, PhonePe, Paytm, BHIM, and standard UPI
  */
 export function generateUpiIntentLinks(details: UpiPaymentDetails): UpiIntentLinks {
   const upiUri = buildUpiUri(details);
@@ -53,12 +58,18 @@ export function generateUpiIntentLinks(details: UpiPaymentDetails): UpiIntentLin
 
   return {
     rawUpiUrl: upiUri,
-    // Google pay direct intent
+    // Google Pay direct intents
     gpayUrl: `gpay://upi/pay?${queryString}`,
-    // PhonePe direct intent
+    androidGpayIntent: `intent://pay?${queryString}#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;end;`,
+    // PhonePe direct intents
     phonepeUrl: `phonepe://pay?${queryString}`,
-    // Paytm direct intent
+    androidPhonePeIntent: `intent://pay?${queryString}#Intent;scheme=upi;package=com.phonepe.app;end;`,
+    // Paytm direct intents
     paytmUrl: `paytmmp://pay?${queryString}`,
+    androidPaytmIntent: `intent://pay?${queryString}#Intent;scheme=upi;package=net.one97.paytm;end;`,
+    // BHIM direct intents
+    bhimUrl: `upi://pay?${queryString}`,
+    androidBhimIntent: `intent://pay?${queryString}#Intent;scheme=upi;package=in.org.npci.upiapp;end;`,
     // Universal intent launcher
     genericUrl: upiUri,
   };

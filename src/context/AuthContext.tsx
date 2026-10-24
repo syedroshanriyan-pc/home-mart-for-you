@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from "react";
 
 export interface UserAddress {
   id: string;
@@ -21,11 +21,13 @@ export interface UserProfile {
   email: string | null;
   role: "CUSTOMER" | "ADMIN" | "SUPER_ADMIN" | "DELIVERY_AGENT" | "ORDER_MANAGER";
   addresses?: UserAddress[];
+  deliveryProfile?: any;
 }
 
 interface AuthContextType {
   user: UserProfile | null;
   loading: boolean;
+  isNetworkError: boolean;
   selectedAddress: UserAddress | null;
   setSelectedAddress: (addr: UserAddress | null) => void;
   login: (identifier: string, pass: string) => Promise<{ success: boolean; user?: UserProfile; error?: string }>;
@@ -38,6 +40,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
+  isNetworkError: false,
   selectedAddress: null,
   setSelectedAddress: () => {},
   login: async () => ({ success: false }),
@@ -50,31 +53,61 @@ const AuthContext = createContext<AuthContextType>({
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isNetworkError, setIsNetworkError] = useState(false);
   const [selectedAddress, setSelectedAddress] = useState<UserAddress | null>(null);
 
-  const refreshUser = async () => {
-    try {
-      const res = await fetch("/api/auth/me");
-      if (res.ok) {
-        const data = await res.json();
-        setUser(data.user || null);
-        if (data.user?.addresses?.length) {
-          const defaultAddr = data.user.addresses.find((a: UserAddress) => a.isDefault) || data.user.addresses[0];
-          setSelectedAddress((prev) => prev || defaultAddr);
-        }
-      } else {
-        setUser(null);
-      }
-    } catch {
-      setUser(null);
-    } finally {
-      setLoading(false);
+  // In-flight dedup ref to prevent React StrictMode duplicate concurrent requests
+  const inFlightPromiseRef = useRef<Promise<void> | null>(null);
+
+  const refreshUser = useCallback(async () => {
+    if (inFlightPromiseRef.current) {
+      return inFlightPromiseRef.current;
     }
-  };
+
+    const task = (async () => {
+      try {
+        const res = await fetch("/api/auth/me", {
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache",
+            Pragma: "no-cache",
+          },
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setUser(data.user || null);
+          setIsNetworkError(false);
+          if (data.user?.addresses?.length) {
+            const defaultAddr =
+              data.user.addresses.find((a: UserAddress) => a.isDefault) || data.user.addresses[0];
+            setSelectedAddress((prev) => prev || defaultAddr);
+          }
+        } else if (res.status === 401) {
+          // Confirmed unauthenticated session
+          setUser(null);
+          setIsNetworkError(false);
+        } else {
+          // 5xx Server error: preserve current user session, mark network issue
+          setIsNetworkError(true);
+        }
+      } catch (err) {
+        // Network/connectivity interruption: preserve existing session, mark network issue
+        console.warn("Session check network interruption:", err);
+        setIsNetworkError(true);
+      } finally {
+        setLoading(false);
+        inFlightPromiseRef.current = null;
+      }
+    })();
+
+    inFlightPromiseRef.current = task;
+    return task;
+  }, []);
 
   useEffect(() => {
     refreshUser();
-  }, []);
+  }, [refreshUser]);
 
   const login = async (identifier: string, pass: string) => {
     try {
@@ -88,6 +121,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, error: data.error || "Login failed" };
       }
       setUser(data.user);
+      setIsNetworkError(false);
       if (data.user?.addresses?.length) {
         setSelectedAddress(data.user.addresses[0]);
       }
@@ -109,6 +143,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, error: data.error || "Registration failed" };
       }
       setUser(data.user);
+      setIsNetworkError(false);
       if (data.user?.addresses?.length) {
         setSelectedAddress(data.user.addresses[0]);
       }
@@ -124,6 +159,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setUser(null);
       setSelectedAddress(null);
+      setIsNetworkError(false);
     }
   };
 
@@ -138,6 +174,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       setUser(null);
       setSelectedAddress(null);
+      setIsNetworkError(false);
       if (typeof window !== "undefined") {
         try {
           localStorage.removeItem("fresh-chicken-cart-v1");
@@ -155,6 +192,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user,
         loading,
+        isNetworkError,
         selectedAddress,
         setSelectedAddress,
         login,

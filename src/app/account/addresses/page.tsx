@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { MapPin, Plus, Trash2, Home, Briefcase, Check } from "lucide-react";
 
 export default function AddressesPage() {
-  const { user, selectedAddress, setSelectedAddress, refreshUser } = useAuth();
+  const { user, loading: authLoading, selectedAddress, setSelectedAddress, refreshUser } = useAuth();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -23,6 +23,18 @@ export default function AddressesPage() {
       setDeletingId(null);
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-16 text-center text-xs text-charcoal-500">
+        Loading saved addresses...
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-6">

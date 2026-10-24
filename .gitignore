@@ -15,7 +15,6 @@ dev.db-journal
 # Environment
 .env*.local
 .env
-.env.example
 
 # OS
 .DS_Store

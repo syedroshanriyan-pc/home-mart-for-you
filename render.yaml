@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: homemart4u-backend
+    runtime: node
+    plan: starter
+    region: singapore
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: ADMIN_MOBILE
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: NEXT_PUBLIC_APP_URL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: UPI_VPA
+        value: "9844797374@mbk"
+      - key: NEXT_PUBLIC_UPI_MERCHANT_NAME
+        value: homemart4u
+      - key: SUPPORT_PHONE_NUMBER
+        value: "+91 90355 26638"
+      - key: NEXT_PUBLIC_SUPPORT_PHONE_NUMBER
+        value: "+91 90355 26638"
+      - key: PAYMENT_WEBHOOK_SECRET
+        generateValue: true
+      - key: PAYMENTS_ENABLED
+        value: "true"

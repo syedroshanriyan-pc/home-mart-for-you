@@ -1,10 +1,22 @@
 "use client";
 
 import React, { useState } from "react";
+import dynamic from "next/dynamic";
 import { useAuth } from "@/context/AuthContext";
-import { StorefrontView, StoreProduct } from "./StorefrontView";
+import type { StoreProduct } from "./StorefrontView";
 import { LandingBlogView } from "./LandingBlogView";
 import { BookOpen, ShoppingBag, Sparkles } from "lucide-react";
+
+const StorefrontView = dynamic(
+  () => import("./StorefrontView").then((mod) => mod.StorefrontView),
+  {
+    loading: () => (
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-12 text-center">
+        <div className="h-64 bg-cream-100 rounded-3xl animate-pulse" />
+      </div>
+    ),
+  }
+);
 
 interface HomePageClientControllerProps {
   products: StoreProduct[];

@@ -526,7 +526,7 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-8 relative flex items-center justify-center bg-stone-50 rounded-lg p-1 border border-stone-100">
                       <Image
-                        src="/images/payment/gpay.png"
+                        src="/images/payment/gpay.webp"
                         alt="Google Pay"
                         width={48}
                         height={24}
@@ -557,7 +557,7 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-8 relative flex items-center justify-center bg-stone-50 rounded-lg p-1 border border-stone-100">
                       <Image
-                        src="/images/payment/phonepe.png"
+                        src="/images/payment/phonepe.webp"
                         alt="PhonePe"
                         width={48}
                         height={24}
@@ -588,7 +588,7 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-8 relative flex items-center justify-center bg-stone-50 rounded-lg p-1 border border-stone-100">
                       <Image
-                        src="/images/payment/paytm.png"
+                        src="/images/payment/paytm.webp"
                         alt="Paytm"
                         width={48}
                         height={24}

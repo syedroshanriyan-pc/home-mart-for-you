@@ -44,25 +44,40 @@ img, video, canvas, svg {
   background: #C6B99E;
 }
 
-/* Shimmer animation for Skeleton Loaders */
+/* GPU Hardware-Composited Shimmer for Skeleton Loaders */
 @keyframes shimmer {
   0% {
-    background-position: -200% 0;
+    transform: translateX(-100%);
   }
   100% {
-    background-position: 200% 0;
+    transform: translateX(100%);
   }
 }
 
 .animate-shimmer {
-  background: linear-gradient(
+  position: relative;
+  overflow: hidden;
+  background-color: #f1f5f9;
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+.animate-shimmer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
     90deg,
-    rgba(226, 232, 240, 0.6) 0%,
-    rgba(241, 245, 249, 0.95) 50%,
-    rgba(226, 232, 240, 0.6) 100%
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.6) 50%,
+    rgba(255, 255, 255, 0) 100%
   );
-  background-size: 200% 100%;
   animation: shimmer 1.8s infinite ease-in-out;
+  will-change: transform;
 }
 
 /* ==========================================================================
@@ -166,10 +181,23 @@ img, video, canvas, svg {
 
 .animate-expanding-ring {
   animation: expanding-ring 2.4s infinite ease-in-out;
+  will-change: transform, opacity;
+  transform: translateZ(0);
 }
 
 .animate-soft-pulse {
   animation: soft-pulse 2s infinite ease-in-out;
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+/* GPU promotion for standard Tailwind animations to prevent non-composited jank */
+.animate-pulse,
+.animate-spin,
+.animate-bounce,
+.animate-ping {
+  will-change: transform, opacity;
+  transform: translateZ(0);
 }
 
 /* Accessibility: Respect Reduced Motion Preference */

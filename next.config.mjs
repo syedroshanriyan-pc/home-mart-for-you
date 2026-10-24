@@ -3,12 +3,16 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   images: {
+    formats: ["image/avif", "image/webp"],
     remotePatterns: [
       {
         protocol: "https",
         hostname: "images.unsplash.com",
       },
     ],
+  },
+  experimental: {
+    optimizePackageImports: ["lucide-react"],
   },
   async rewrites() {
     const backendUrl = process.env.RENDER_BACKEND_URL || process.env.BACKEND_API_URL;

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { CartProvider } from "@/context/CartContext";
@@ -6,6 +7,11 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { PwaRegister } from "@/components/pwa/PwaRegister";
 import { InstallPromptBanner } from "@/components/pwa/InstallPromptBanner";
+
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "homemart4u - Daily Groceries & Fresh Meat | Srinivaspur Road, Mulbagal",
@@ -80,7 +86,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         />
       </head>
-      <body className="min-h-screen flex flex-col bg-cream-50 text-charcoal-600 antialiased">
+      <body className={`${inter.className} min-h-screen flex flex-col bg-cream-50 text-charcoal-600 antialiased`}>
         <AuthProvider>
           <CartProvider>
             <PwaRegister />

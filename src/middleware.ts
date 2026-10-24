@@ -188,13 +188,7 @@ export async function middleware(req: NextRequest) {
 
   // Add CORS headers for API routes
   if (pathname.startsWith("/api/")) {
-    const isAllowedOrigin =
-      origin &&
-      (origin.startsWith("http://localhost:") ||
-        origin.startsWith("http://127.0.0.1:") ||
-        origin === req.nextUrl.origin ||
-        (allowedOrigin && origin === allowedOrigin));
-    if (isAllowedOrigin) {
+    if (origin && isAllowedOrigin) {
       response.headers.set("Access-Control-Allow-Origin", origin);
       response.headers.set("Access-Control-Allow-Credentials", "true");
     }

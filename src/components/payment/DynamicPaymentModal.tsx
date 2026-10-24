@@ -15,6 +15,7 @@ import {
   PhoneCall,
   Banknote,
   Sparkles,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
@@ -60,6 +61,8 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
   >("PENDING");
 
   const [activeApp, setActiveApp] = useState<string | null>(null);
+  const [activeTargetUrl, setActiveTargetUrl] = useState<string>("");
+  const [isManualChecking, setIsManualChecking] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [failureReason, setFailureReason] = useState("");
   const [countdown, setCountdown] = useState(300); // 5-minute validity synchronized from backend
@@ -195,23 +198,24 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
     return () => clearInterval(timer);
   }, [isOpen, paymentStatus]);
 
+  // Helper to determine accurate launch URL per platform
+  const getAppTargetUrl = (appName: string, primaryUrl: string, androidIntentUrl?: string): string => {
+    if (isAndroid() && androidIntentUrl) {
+      return androidIntentUrl;
+    }
+    return primaryUrl || intentLinks?.genericUrl || "#";
+  };
+
   // Launch UPI App with device-appropriate intent handling
   const handleLaunchApp = (appName: string, primaryUrl: string, androidIntentUrl?: string) => {
     if (launchingApp) return; // Prevent duplicate rapid initiation
 
+    const targetUrl = getAppTargetUrl(appName, primaryUrl, androidIntentUrl);
     setActiveApp(appName);
+    setActiveTargetUrl(targetUrl);
     setLaunchingApp(appName);
     setPaymentStatus("AWAITING_APP");
     setErrorMessage("");
-
-    let targetUrl = primaryUrl;
-
-    // Use Android package intent on Android for direct app launch
-    if (isAndroid() && androidIntentUrl) {
-      targetUrl = androidIntentUrl;
-    } else if (isIos() || !isAndroid()) {
-      targetUrl = primaryUrl;
-    }
 
     if (!isMobile()) {
       // Desktop helper notice
@@ -219,16 +223,44 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
     }
 
     try {
-      window.location.href = targetUrl;
+      // Dispatch via anchor click to ensure browser treats it as direct user navigation
+      const a = document.createElement("a");
+      a.href = targetUrl;
+      a.target = "_top";
+      a.rel = "noopener noreferrer";
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        if (document.body.contains(a)) document.body.removeChild(a);
+      }, 500);
     } catch {
-      // Fallback to universal generic UPI URL
-      if (intentLinks?.genericUrl && targetUrl !== intentLinks.genericUrl) {
-        window.location.href = intentLinks.genericUrl;
-      }
+      window.location.href = targetUrl;
     } finally {
       setTimeout(() => {
         setLaunchingApp(null);
       }, 1500);
+    }
+  };
+
+  const checkPaymentStatusManual = async () => {
+    if (isManualChecking) return;
+    setIsManualChecking(true);
+    try {
+      const res = await fetch(`/api/payments/${orderId}/status`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.payment?.status === "COMPLETED") {
+          setConfirmedTxnRef(data.payment.upiTxnRef || `UPI_${Date.now().toString().slice(-8)}`);
+          setPaymentStatus("COMPLETED");
+        } else if (data.payment?.status === "FAILED") {
+          setFailureReason(data.payment?.failureReason || "Payment was rejected or cancelled in your UPI app.");
+          setPaymentStatus("FAILED");
+        }
+      }
+    } catch {
+      // Silent error on manual poll
+    } finally {
+      setTimeout(() => setIsManualChecking(false), 800);
     }
   };
 
@@ -429,10 +461,47 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
                 </p>
               </div>
 
-              {/* Live Webhook / Provider Pulse */}
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-800 text-[11px] font-bold rounded-full border border-emerald-200 animate-pulse">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span>Checking payment status live with bank network...</span>
+              {/* Direct One-Tap Re-Launch Action Button */}
+              <div className="pt-1 space-y-2 max-w-sm mx-auto">
+                <a
+                  href={activeTargetUrl || intentLinks?.genericUrl || "#"}
+                  target="_top"
+                  rel="noopener noreferrer"
+                  className="w-full py-3 px-4 rounded-xl font-bold text-xs sm:text-sm bg-stone-900 hover:bg-stone-800 active:scale-[0.98] text-white shadow-md flex items-center justify-center gap-2 transition"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span>Open {activeApp} to Pay</span>
+                </a>
+
+                {activeApp !== "BHIM / Other UPI App" && intentLinks?.genericUrl && (
+                  <a
+                    href={intentLinks.genericUrl}
+                    target="_top"
+                    rel="noopener noreferrer"
+                    className="w-full py-2 px-3 rounded-lg font-semibold text-[11px] text-stone-700 bg-stone-100 hover:bg-stone-200 flex items-center justify-center gap-1.5 transition"
+                  >
+                    <span>Pay with any other UPI app</span>
+                  </a>
+                )}
+              </div>
+
+              {/* Live Webhook / Provider Pulse with Manual Refresh Button */}
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-800 text-[11px] font-bold rounded-full border border-emerald-200 animate-pulse">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span>Checking payment status live with bank network...</span>
+                </div>
+                <div>
+                  <button
+                    type="button"
+                    disabled={isManualChecking}
+                    onClick={checkPaymentStatusManual}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-stone-700 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 border border-stone-200 transition"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isManualChecking ? "animate-spin" : ""}`} />
+                    <span>Check Bank Status Now</span>
+                  </button>
+                </div>
               </div>
 
               {/* Navigation options */}
@@ -511,9 +580,14 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
               {/* UPI INTENT APPS LIST */}
               <div className="space-y-2">
                 {/* Google Pay */}
-                <button
-                  type="button"
-                  disabled={Boolean(launchingApp)}
+                <a
+                  href={getAppTargetUrl(
+                    "Google Pay",
+                    intentLinks?.gpayUrl || intentLinks?.genericUrl || "#",
+                    intentLinks?.androidGpayIntent
+                  )}
+                  target="_top"
+                  rel="noopener noreferrer"
                   onClick={() =>
                     handleLaunchApp(
                       "Google Pay",
@@ -521,7 +595,7 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
                       intentLinks?.androidGpayIntent
                     )
                   }
-                  className="w-full p-3.5 rounded-2xl border border-stone-200 hover:border-stone-400 bg-white hover:bg-stone-50 transition-all flex items-center justify-between shadow-xs group disabled:opacity-60"
+                  className="w-full p-3.5 rounded-2xl border border-stone-200 hover:border-stone-400 bg-white hover:bg-stone-50 transition-all flex items-center justify-between shadow-xs group"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-8 relative flex items-center justify-center bg-stone-50 rounded-lg p-1 border border-stone-100">
@@ -539,12 +613,17 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
                     </div>
                   </div>
                   <ChevronRight className="w-4 h-4 text-stone-400 group-hover:text-stone-800 transition" />
-                </button>
+                </a>
 
                 {/* PhonePe */}
-                <button
-                  type="button"
-                  disabled={Boolean(launchingApp)}
+                <a
+                  href={getAppTargetUrl(
+                    "PhonePe",
+                    intentLinks?.phonepeUrl || intentLinks?.genericUrl || "#",
+                    intentLinks?.androidPhonePeIntent
+                  )}
+                  target="_top"
+                  rel="noopener noreferrer"
                   onClick={() =>
                     handleLaunchApp(
                       "PhonePe",
@@ -552,7 +631,7 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
                       intentLinks?.androidPhonePeIntent
                     )
                   }
-                  className="w-full p-3.5 rounded-2xl border border-stone-200 hover:border-purple-300 bg-white hover:bg-purple-50/20 transition-all flex items-center justify-between shadow-xs group disabled:opacity-60"
+                  className="w-full p-3.5 rounded-2xl border border-stone-200 hover:border-purple-300 bg-white hover:bg-purple-50/20 transition-all flex items-center justify-between shadow-xs group"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-8 relative flex items-center justify-center bg-stone-50 rounded-lg p-1 border border-stone-100">
@@ -570,12 +649,17 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
                     </div>
                   </div>
                   <ChevronRight className="w-4 h-4 text-stone-400 group-hover:text-purple-700 transition" />
-                </button>
+                </a>
 
                 {/* Paytm */}
-                <button
-                  type="button"
-                  disabled={Boolean(launchingApp)}
+                <a
+                  href={getAppTargetUrl(
+                    "Paytm",
+                    intentLinks?.paytmUrl || intentLinks?.genericUrl || "#",
+                    intentLinks?.androidPaytmIntent
+                  )}
+                  target="_top"
+                  rel="noopener noreferrer"
                   onClick={() =>
                     handleLaunchApp(
                       "Paytm",
@@ -583,7 +667,7 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
                       intentLinks?.androidPaytmIntent
                     )
                   }
-                  className="w-full p-3.5 rounded-2xl border border-stone-200 hover:border-sky-300 bg-white hover:bg-sky-50/20 transition-all flex items-center justify-between shadow-xs group disabled:opacity-60"
+                  className="w-full p-3.5 rounded-2xl border border-stone-200 hover:border-sky-300 bg-white hover:bg-sky-50/20 transition-all flex items-center justify-between shadow-xs group"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-8 relative flex items-center justify-center bg-stone-50 rounded-lg p-1 border border-stone-100">
@@ -601,12 +685,17 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
                     </div>
                   </div>
                   <ChevronRight className="w-4 h-4 text-stone-400 group-hover:text-sky-700 transition" />
-                </button>
+                </a>
 
                 {/* Other UPI / BHIM App */}
-                <button
-                  type="button"
-                  disabled={Boolean(launchingApp)}
+                <a
+                  href={getAppTargetUrl(
+                    "BHIM / Other UPI App",
+                    intentLinks?.bhimUrl || intentLinks?.genericUrl || "#",
+                    intentLinks?.androidBhimIntent
+                  )}
+                  target="_top"
+                  rel="noopener noreferrer"
                   onClick={() =>
                     handleLaunchApp(
                       "BHIM / Other UPI App",
@@ -614,7 +703,7 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
                       intentLinks?.androidBhimIntent
                     )
                   }
-                  className="w-full p-3.5 rounded-2xl border border-stone-200 hover:border-emerald-300 bg-white hover:bg-emerald-50/20 transition-all flex items-center justify-between shadow-xs group disabled:opacity-60"
+                  className="w-full p-3.5 rounded-2xl border border-stone-200 hover:border-emerald-300 bg-white hover:bg-emerald-50/20 transition-all flex items-center justify-between shadow-xs group"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-8 relative flex items-center justify-center bg-emerald-50 rounded-lg p-1 border border-emerald-100 text-emerald-700 font-black text-xs font-mono">
@@ -626,7 +715,7 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
                     </div>
                   </div>
                   <ChevronRight className="w-4 h-4 text-stone-400 group-hover:text-emerald-700 transition" />
-                </button>
+                </a>
               </div>
 
               {/* Customer Support Complaint Section (Replacing manual UTR entry) */}

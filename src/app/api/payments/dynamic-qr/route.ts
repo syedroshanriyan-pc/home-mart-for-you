@@ -44,6 +44,8 @@ export async function POST(req: NextRequest) {
     const payeeName = process.env.NEXT_PUBLIC_UPI_MERCHANT_NAME || nameSetting?.value || "homemart4u";
     const orderNumber = targetOrderNumber || `FC-${Date.now().toString().slice(-4)}`;
     const transactionRef = `TXN_${orderNumber}_${Date.now()}`;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.FRONTEND_URL || "https://homemart4u.vercel.app";
+    const callbackUrl = `${appUrl}/checkout?orderId=${orderId || orderNumber}`;
 
     const upiDetails = {
       vpa,
@@ -52,6 +54,7 @@ export async function POST(req: NextRequest) {
       orderNumber,
       transactionRef,
       note: `Payment for Order ${orderNumber}`,
+      callbackUrl,
     };
 
     const upiUri = buildUpiUri(upiDetails);

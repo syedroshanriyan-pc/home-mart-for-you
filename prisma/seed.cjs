@@ -77,7 +77,7 @@ async function main() {
     { key: "minimum_order_meat_grams", value: "0", description: "Minimum order threshold" },
     { key: "TARGET_DELIVERY_MINUTES", value: "20", description: "Approximate delivery target window" },
     { key: "ORDER_SIMULATION_ENABLED", value: "false", description: "Development order lifecycle simulation flag" },
-    { key: "UPI_VPA", value: "9844797374@mbk", description: "Merchant UPI VPA ID for app intent payments" },
+    { key: "UPI_VPA", value: process.env.UPI_VPA || "merchant@upi", description: "Merchant UPI VPA ID for app intent payments" },
     { key: "UPI_MERCHANT_NAME", value: "homemart4u", description: "Payee Name displayed in Google Pay / PhonePe / Paytm" },
   ];
 

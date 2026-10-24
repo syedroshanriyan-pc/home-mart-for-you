@@ -61,7 +61,7 @@ export class ModularPaymentProvider implements IPaymentProvider {
       success: true,
       provider: params.method,
       transactionReference: `UPI_${params.orderNumber}_${Date.now()}`,
-      instructions: `Complete payment via ${params.method} for homemart4u verified merchant (9844797374@mbk)`,
+      instructions: `Complete payment via ${params.method} for ${process.env.NEXT_PUBLIC_SHOP_NAME || "homemart4u"}`,
     };
   }
 
@@ -81,7 +81,7 @@ export class ModularPaymentProvider implements IPaymentProvider {
       orderNumber,
       expectedAmountMinor,
       expectedCurrency = "INR",
-      payeeVpa = "9844797374@mbk",
+      payeeVpa = process.env.UPI_VPA || "merchant@upi",
     } = params;
 
     // 1. Check external payment gateway API if live credentials are configured (Razorpay / Cashfree / PhonePe)

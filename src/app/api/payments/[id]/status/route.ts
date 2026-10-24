@@ -380,7 +380,7 @@ export async function POST(
         orderNumber: existingPayment.order.orderNumber,
         expectedAmountMinor: existingPayment.amountMinor,
         expectedCurrency: "INR",
-        payeeVpa: "9844797374@mbk",
+        payeeVpa: process.env.UPI_VPA || "merchant@upi",
       });
 
       if (!providerRes.verified) {
@@ -428,7 +428,7 @@ export async function POST(
             create: {
               utr: cleanUtr,
               amountMinor: existingPayment.amountMinor,
-              payeeVpa: process.env.UPI_VPA || "9844797374@mbk",
+              payeeVpa: process.env.UPI_VPA || "merchant@upi",
               source: providerRes.source || "USER_LIVE_PAYMENT",
               status: "CLAIMED",
               claimedOrderId: existingPayment.orderId,

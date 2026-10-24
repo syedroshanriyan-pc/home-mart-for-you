@@ -352,7 +352,7 @@ model BankTransaction {
   id             String    @id @default(cuid())
   utr            String    @unique // Authentic 12-digit UPI UTR from bank
   amountMinor    Int       // In paise, e.g. 200 = ₹2.00
-  payeeVpa       String    @default("9844797374@mbk")
+  payeeVpa       String    @default("merchant@upi")
   senderVpa      String?
   source         String    @default("BANK_STATEMENT") // WEBHOOK, BANK_STATEMENT, ADMIN_MANUAL, SMS_SYNC
   status         String    @default("UNCLAIMED") // UNCLAIMED, CLAIMED, EXPIRED

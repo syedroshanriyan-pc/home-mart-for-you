@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Settings, Save, RefreshCw, AlertCircle, CheckCircle2, Store, MapPin, DollarSign, Truck } from "lucide-react";
+import { Settings, Save, RefreshCw, AlertCircle, CheckCircle2, Store, MapPin, DollarSign, Truck, CreditCard } from "lucide-react";
 
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<Record<string, string>>({
@@ -16,6 +16,8 @@ export default function AdminSettingsPage() {
     delivery_rate_per_100m_paise: "150",
     cod_surcharge_paise: "700",
     minimum_order_meat_grams: "0",
+    UPI_VPA: "",
+    UPI_MERCHANT_NAME: "homemart4u",
   });
 
   const [loading, setLoading] = useState(true);
@@ -252,6 +254,48 @@ export default function AdminSettingsPage() {
                 className="w-full px-3.5 py-2.5 bg-cream-50 border border-cream-300 rounded-xl text-xs font-mono text-charcoal-800 focus:outline-none focus:border-amberGold-500"
               />
               <span className="text-[10px] text-charcoal-400 mt-1 block">0 = No minimum order limit (any quantity allowed)</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Section 3: UPI Payment Gateway & VPA Configuration */}
+        <div className="bg-white p-6 rounded-2xl border border-cream-300 shadow-subtle space-y-4">
+          <div className="flex items-center gap-2 pb-3 border-b border-cream-200">
+            <CreditCard className="w-5 h-5 text-forest-600" />
+            <h2 className="font-semibold text-charcoal-800 text-sm">UPI Payment Gateway & Payee VPA</h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-charcoal-700 mb-1">
+                Active Merchant UPI ID (VPA)
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. yourstore@okhdfcbank or 9876543210@paytm"
+                value={settings.UPI_VPA || ""}
+                onChange={(e) => handleChange("UPI_VPA", e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-cream-50 border border-cream-300 rounded-xl text-xs font-mono text-charcoal-800 focus:outline-none focus:border-amberGold-500"
+              />
+              <span className="text-[10px] text-charcoal-400 mt-1 block">
+                Customer payments and dynamic QR codes will directly route to this UPI ID.
+              </span>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-charcoal-700 mb-1">
+                UPI Payee / Merchant Display Name
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. homemart4u"
+                value={settings.UPI_MERCHANT_NAME || ""}
+                onChange={(e) => handleChange("UPI_MERCHANT_NAME", e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-cream-50 border border-cream-300 rounded-xl text-xs text-charcoal-800 focus:outline-none focus:border-amberGold-500"
+              />
+              <span className="text-[10px] text-charcoal-400 mt-1 block">
+                Shown to customers inside Google Pay, PhonePe, Paytm before authorizing payment.
+              </span>
             </div>
           </div>
         </div>

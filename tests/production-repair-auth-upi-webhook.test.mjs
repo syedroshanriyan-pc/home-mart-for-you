@@ -63,7 +63,7 @@ describe("HOMEMART4U — Production Authentication, UPI Payment, Webhook and Sup
   describe("2. UPI Payment Options & Deep Link Generation", () => {
     it("generateUpiIntentLinks must generate deep links for all options with correct parameters", () => {
       const links = generateUpiIntentLinks({
-        vpa: "9844797374@mbk",
+        vpa: "merchant@upi",
         payeeName: "homemart4u",
         amountRupees: 250.5,
         orderNumber: "FC-9001",
@@ -84,7 +84,7 @@ describe("HOMEMART4U — Production Authentication, UPI Payment, Webhook and Sup
 
       assert.ok(links.genericUrl.includes("am=250.50"), "Amount must be formatted with 2 decimal places");
       assert.ok(links.genericUrl.includes("cu=INR"), "Currency must be INR");
-      assert.ok(links.genericUrl.includes("pa=9844797374%40mbk"), "VPA must be properly encoded");
+      assert.ok(links.genericUrl.includes("pa=merchant%40upi"), "VPA must be properly encoded");
     });
 
     it("DynamicPaymentModal must provide platform-aware handling and debouncing", () => {

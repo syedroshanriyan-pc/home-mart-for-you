@@ -441,7 +441,7 @@ export async function POST(
         orderNumber: existingPayment.order.orderNumber,
         expectedAmountMinor: existingPayment.amountMinor,
         expectedCurrency: "INR",
-        payeeVpa: process.env.UPI_VPA || "syedroshanriyan@okaxis",
+        payeeVpa: process.env.UPI_VPA || "7975137618@okbizaxis",
       });
 
       if (!providerRes.verified) {
@@ -530,7 +530,7 @@ export async function POST(
             create: {
               utr: cleanUtr,
               amountMinor: existingPayment.amountMinor,
-              payeeVpa: process.env.UPI_VPA || "syedroshanriyan@okaxis",
+              payeeVpa: process.env.UPI_VPA || "7975137618@okbizaxis",
               source: providerRes.source || "USER_LIVE_PAYMENT",
               status: "CLAIMED",
               claimedOrderId: existingPayment.orderId,

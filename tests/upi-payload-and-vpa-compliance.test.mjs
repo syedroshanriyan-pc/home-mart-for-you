@@ -175,5 +175,64 @@ describe("Homemart4u UPI Payload & VPA Compliance Suite", () => {
         /UPI Amount \(am\) must be a positive number greater than zero/
       );
     });
+
+    it("prevents amount tampering by rejecting non-numeric, NaN, or non-finite values", () => {
+      assert.throws(
+        () => buildUpiUri({ vpa: "test@upi", payeeName: "Store", amountRupees: "250", orderNumber: "FC-1" }),
+        /UPI Amount \(am\) must be a positive number greater than zero/
+      );
+      assert.throws(
+        () => buildUpiUri({ vpa: "test@upi", payeeName: "Store", amountRupees: NaN, orderNumber: "FC-1" }),
+        /UPI Amount \(am\) must be a positive number greater than zero/
+      );
+      assert.throws(
+        () => buildUpiUri({ vpa: "test@upi", payeeName: "Store", amountRupees: Infinity, orderNumber: "FC-1" }),
+        /UPI Amount \(am\) must be a positive number greater than zero/
+      );
+      assert.throws(
+        () => buildUpiUri({ vpa: "test@upi", payeeName: "Store", amountRupees: null, orderNumber: "FC-1" }),
+        /UPI Amount \(am\) must be a positive number greater than zero/
+      );
+    });
+  });
+
+  describe("5. Unique Transaction References & Mode Safety", () => {
+    it("generates unique transaction references for successive requests and never reuses terminal ID as 'tr'", () => {
+      const uri1 = buildUpiUri({
+        vpa: "7975137618@okbizaxis",
+        payeeName: "Fresh Chicken Centre",
+        amountRupees: 200,
+        orderNumber: "FC-4001",
+        terminalId: "BCR2DN7T7GE7D2Z3",
+      });
+
+      const uri2 = buildUpiUri({
+        vpa: "7975137618@okbizaxis",
+        payeeName: "Fresh Chicken Centre",
+        amountRupees: 200,
+        orderNumber: "FC-4002",
+        terminalId: "BCR2DN7T7GE7D2Z3",
+      });
+
+      const trMatch1 = uri1.match(/tr=([^&]+)/);
+      const trMatch2 = uri2.match(/tr=([^&]+)/);
+
+      assert.ok(trMatch1, "First URI must contain a transaction reference 'tr'");
+      assert.ok(trMatch2, "Second URI must contain a transaction reference 'tr'");
+      assert.notEqual(trMatch1[1], trMatch2[1], "Successive orders must NOT have identical 'tr' references");
+      assert.notEqual(trMatch1[1], "BCR2DN7T7GE7D2Z3", "Terminal ID must NOT be reused as transaction reference 'tr'");
+    });
+
+    it("does not inject static QR mode (mode=01) on dynamic payments with pre-set amounts", () => {
+      const uri = buildUpiUri({
+        vpa: "7975137618@okbizaxis",
+        payeeName: "Fresh Chicken Centre",
+        amountRupees: 350,
+        orderNumber: "FC-4003",
+        mode: "01", // Attempting to pass static mode with an amount
+      });
+
+      assert.ok(!uri.includes("mode=01"), "Must NOT include mode=01 on dynamic payments to prevent Google Pay risk flags");
+    });
   });
 });

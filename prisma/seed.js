@@ -77,8 +77,8 @@ async function main() {
     { key: "minimum_order_meat_grams", value: "0", description: "Minimum order threshold" },
     { key: "TARGET_DELIVERY_MINUTES", value: "20", description: "Approximate delivery target window" },
     { key: "ORDER_SIMULATION_ENABLED", value: "false", description: "Development order lifecycle simulation flag" },
-    { key: "UPI_VPA", value: process.env.UPI_VPA || "syedroshanriyan@okaxis", description: "Merchant UPI VPA ID for app intent payments" },
-    { key: "UPI_MERCHANT_NAME", value: "homemart4u", description: "Payee Name displayed in Google Pay / PhonePe / Paytm" },
+    { key: "UPI_VPA", value: process.env.UPI_VPA || "7975137618@okbizaxis", description: "Merchant UPI VPA ID for app intent payments" },
+    { key: "UPI_MERCHANT_NAME", value: process.env.NEXT_PUBLIC_UPI_MERCHANT_NAME || "Fresh Chicken Centre", description: "Payee Name displayed in Google Pay / PhonePe / Paytm" },
   ];
 
   await prisma.systemSetting.createMany({ data: settings, skipDuplicates: true });

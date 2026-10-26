@@ -108,18 +108,25 @@ export interface IPaymentAdapter {
 export class DynamicUpiQrPaymentAdapter implements IPaymentAdapter {
   name = "DYNAMIC_UPI_QR";
 
-  private async getMerchantDetails(): Promise<{ vpa: string; payeeName: string }> {
+  private async getMerchantDetails(): Promise<{
+    vpa: string;
+    payeeName: string;
+    mc?: string;
+  }> {
     try {
       const records = await prisma.systemSetting.findMany({
-        where: { key: { in: ["UPI_VPA", "UPI_MERCHANT_NAME"] } },
+        where: { key: { in: ["UPI_VPA", "UPI_MERCHANT_NAME", "UPI_PAYEE_NAME", "UPI_MCC"] } },
       });
       const vpa = records.find((r) => r.key === "UPI_VPA")?.value?.trim() || process.env.UPI_VPA || "7975137618@okbizaxis";
-      const payeeName = records.find((r) => r.key === "UPI_MERCHANT_NAME")?.value?.trim() || process.env.NEXT_PUBLIC_UPI_MERCHANT_NAME || "Fresh Chicken Centre";
-      return { vpa, payeeName };
+      // Registered merchant business name: Fresh Chicken Centre
+      const payeeName = records.find((r) => r.key === "UPI_MERCHANT_NAME")?.value?.trim() || records.find((r) => r.key === "UPI_PAYEE_NAME")?.value?.trim() || process.env.NEXT_PUBLIC_UPI_MERCHANT_NAME || process.env.UPI_PAYEE_NAME?.trim() || "Fresh Chicken Centre";
+      const mc = records.find((r) => r.key === "UPI_MCC")?.value?.trim() || process.env.UPI_MCC || "5422";
+      return { vpa, payeeName, mc };
     } catch {
       return {
         vpa: process.env.UPI_VPA || "7975137618@okbizaxis",
-        payeeName: process.env.NEXT_PUBLIC_UPI_MERCHANT_NAME || "Fresh Chicken Centre",
+        payeeName: process.env.NEXT_PUBLIC_UPI_MERCHANT_NAME || process.env.UPI_PAYEE_NAME?.trim() || "Fresh Chicken Centre",
+        mc: process.env.UPI_MCC || "5422",
       };
     }
   }
@@ -127,8 +134,9 @@ export class DynamicUpiQrPaymentAdapter implements IPaymentAdapter {
   async createPaymentSession(params: CreatePaymentSessionParams): Promise<PaymentSessionResult> {
     const { orderId, orderNumber, amountMinor } = params;
     const amountRupees = amountMinor / 100;
-    const { vpa, payeeName } = await this.getMerchantDetails();
+    const { vpa, payeeName, mc } = await this.getMerchantDetails();
 
+    // Unique transaction reference per payment session (NPCI compliant)
     const providerReference = `TXN_${orderNumber}_${Date.now()}`;
     const expiresInSeconds = 300; // 5-minute validity window
     const expiresAt = new Date(Date.now() + expiresInSeconds * 1000).toISOString();
@@ -144,7 +152,7 @@ export class DynamicUpiQrPaymentAdapter implements IPaymentAdapter {
       transactionRef: providerReference,
       note: `Payment for Order ${orderNumber}`,
       callbackUrl,
-      mc: process.env.UPI_MCC || undefined,
+      mc,
     };
 
     const upiUri = buildUpiUri(upiPayloadConfig);
@@ -548,7 +556,7 @@ export class DynamicUpiQrPaymentAdapter implements IPaymentAdapter {
       orderNumber,
       expectedAmountMinor,
       expectedCurrency = "INR",
-      payeeVpa = process.env.UPI_VPA || "syedroshanriyan@okaxis",
+      payeeVpa = process.env.UPI_VPA || "7975137618@okbizaxis",
     } = params;
 
     // 1. Check external payment gateway API if live credentials are configured (Razorpay / Cashfree / PhonePe)

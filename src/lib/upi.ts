@@ -7,10 +7,14 @@ export interface UpiPaymentDetails {
   orderNumber: string;
   orderId?: string;
   transactionRef?: string;
+  terminalId?: string;
   note?: string;
   callbackUrl?: string;
   url?: string;
   mc?: string;
+  aid?: string;
+  ver?: string;
+  mode?: string;
   allowUnverifiedUrl?: boolean;
   [key: string]: any;
 }
@@ -32,16 +36,17 @@ export interface UpiIntentLinks {
 /**
  * Builds the standard NPCI UPI Payment URI conforming to NPCI UPI Linking Specifications.
  *
- * Example: upi://pay?pa=syedroshanriyan%40okaxis&pn=homemart4u&am=250.00&cu=INR&tn=Order%20FC-1001&tr=TXN_FC-1001_1729000000
+ * Example: upi://pay?pa=7975137618%40okbizaxis&pn=Afsar%20Pasha%20&mc=5422&aid=uGICAgKDBo9NF&ver=01&mode=01&tr=BCR2DN7T7GE7D2Z3&am=250.00&cu=INR&tn=Order%20FC-1001
  *
  * Key NPCI & PSP compliance rules implemented:
  * 1. RFC 3986 percent-encoding (%20 for spaces instead of +) to prevent parsing errors across UPI scanners.
  * 2. Sanitize note (strip '#' fragment identifiers) and sanitize transactionRef (max 35 alphanumeric chars).
- * 3. Omit 'url' parameter for personal/standard VPAs. Under NPCI guidelines (Circular 34 & 94), the 'url'
+ * 3. Support official Google Pay for Business merchant parameters ('aid', 'mode', 'ver', and registered terminal ID in 'tr').
+ * 4. Omit 'url' parameter for personal/standard VPAs. Under NPCI guidelines (Circular 34 & 94), the 'url'
  *    parameter is an e-commerce merchant callback restricted to verified merchant accounts with a valid MCC.
  *    Injecting 'url' on a personal handle (e.g. @okaxis) causes Google Pay, PhonePe, and Axis Bank to reject
  *    with "Payment not supported for this receiver VPA".
- * 4. Only include 'mc' (Merchant Category Code) if an authentic 4-digit MCC is configured; never invent one.
+ * 5. Only include 'mc' (Merchant Category Code) if an authentic 4-digit MCC is configured; never invent one.
  */
 export function buildUpiUri(details: UpiPaymentDetails): string {
   const {
@@ -50,10 +55,14 @@ export function buildUpiUri(details: UpiPaymentDetails): string {
     amountRupees,
     orderNumber,
     transactionRef,
+    terminalId,
     note,
     callbackUrl,
     url,
     mc,
+    aid,
+    ver,
+    mode,
     allowUnverifiedUrl,
   } = details;
 
@@ -63,15 +72,18 @@ export function buildUpiUri(details: UpiPaymentDetails): string {
   if (!payeeName || !payeeName.trim()) {
     throw new Error("UPI Payee Name (pn) is mandatory");
   }
-  if (typeof amountRupees === "number" && (isNaN(amountRupees) || amountRupees <= 0)) {
+  if (
+    typeof amountRupees !== "number" ||
+    isNaN(amountRupees) ||
+    !isFinite(amountRupees) ||
+    amountRupees <= 0
+  ) {
     throw new Error("UPI Amount (am) must be a positive number greater than zero");
   }
 
   const cleanVpa = vpa.trim();
   const cleanPayee = payeeName.trim();
-  const cleanAmount = typeof amountRupees === "number" && amountRupees > 0
-    ? amountRupees.toFixed(2)
-    : undefined;
+  const cleanAmount = amountRupees.toFixed(2);
 
   // Sanitize note: strip URI fragment '#' delimiters, collapse whitespace, max 50 chars
   const rawNote = note || `Order ${orderNumber}`;
@@ -81,7 +93,9 @@ export function buildUpiUri(details: UpiPaymentDetails): string {
     .trim()
     .slice(0, 50);
 
-  // Sanitize transactionRef: max 35 characters, alphanumeric + underscore/hyphen
+  // NPCI Specification: 'tr' (Transaction Reference ID) MUST be a unique identifier
+  // per transaction attempt. Terminal/Store identifiers must never replace 'tr', as reusing
+  // static references causes duplicate transaction rejections across UPI switches.
   const rawTr = transactionRef || `TXN_${orderNumber}_${Date.now()}`;
   const cleanTr = rawTr.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 35);
 
@@ -104,6 +118,31 @@ export function buildUpiUri(details: UpiPaymentDetails): string {
   const hasValidMc = Boolean(configuredMc && /^\d{4}$/.test(configuredMc.trim()));
   if (hasValidMc && configuredMc) {
     parts.push(`mc=${encodeURIComponent(configuredMc.trim())}`);
+  }
+
+  // Handle Merchant Terminal Identifier (tid) if provided, without overriding 'tr'
+  const merchantTerminalId = terminalId || process.env.UPI_TERMINAL_ID;
+  if (merchantTerminalId && merchantTerminalId.trim()) {
+    parts.push(`tid=${encodeURIComponent(merchantTerminalId.trim())}`);
+  }
+
+  // Handle Google Pay / Merchant Acquirer Application ID (aid)
+  if (aid && aid.trim()) {
+    parts.push(`aid=${encodeURIComponent(aid.trim())}`);
+  }
+
+  // Handle UPI Protocol Version (ver)
+  if (ver && ver.trim()) {
+    parts.push(`ver=${encodeURIComponent(ver.trim())}`);
+  }
+
+  // Handle UPI Mode: NPCI defines mode=01 as Offline Static Counter QR scan.
+  // Never inject mode=01 on dynamic amounts or web payments to prevent Google Pay risk blocks.
+  if (mode && mode.trim()) {
+    const cleanMode = mode.trim();
+    if (cleanMode !== "01" || !cleanAmount) {
+      parts.push(`mode=${encodeURIComponent(cleanMode)}`);
+    }
   }
 
   // Under NPCI rules, the url parameter is strictly reserved for verified merchants.

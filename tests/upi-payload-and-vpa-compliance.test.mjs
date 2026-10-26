@@ -96,6 +96,26 @@ describe("Homemart4u UPI Payload & VPA Compliance Suite", () => {
       assert.ok(uri.includes("url=https%3A%2F%2Fhomemart4u.vercel.app%2Forder-success%3ForderId%3D123"), "URL may be included for verified merchant with MCC");
     });
 
+    it("correctly generates verified payload for Google Pay for Business: Fresh Chicken Centre (7975137618@okbizaxis, MCC 5422)", () => {
+      const uri = buildUpiUri({
+        vpa: "7975137618@okbizaxis",
+        payeeName: "Fresh Chicken Centre",
+        amountRupees: 350.0,
+        orderNumber: "FC-3001",
+        mc: "5422",
+        transactionRef: "TXN_FC-3001_1729000000",
+        note: "Order FC-3001 Fresh Chicken",
+      });
+
+      assert.ok(uri.startsWith("upi://pay?"), "Must use upi://pay scheme");
+      assert.ok(uri.includes("pa=7975137618%40okbizaxis"), "Must encode Google Pay for Business VPA");
+      assert.ok(uri.includes("pn=Fresh%20Chicken%20Centre"), "Must encode display name with %20 spaces");
+      assert.ok(uri.includes("mc=5422"), "Must include official poultry/meat provisioners MCC 5422");
+      assert.ok(uri.includes("am=350.00"), "Must include exact amount");
+      assert.ok(uri.includes("cu=INR"), "Must include INR currency");
+      assert.ok(uri.includes("tr=TXN_FC-3001_1729000000"), "Must include transaction reference");
+    });
+
     it("ignores malformed or non-4-digit MCC to prevent bank rejection", () => {
       const uri = buildUpiUri({
         vpa: "test@bank",

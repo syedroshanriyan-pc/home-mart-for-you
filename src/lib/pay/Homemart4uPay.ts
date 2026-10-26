@@ -96,16 +96,16 @@ export class Homemart4uPayEngine {
       const vpa =
         records.find((r) => r.key === "UPI_VPA")?.value?.trim() ||
         process.env.UPI_VPA ||
-        "syedroshanriyan@okaxis";
+        "7975137618@okbizaxis";
       const payeeName =
         records.find((r) => r.key === "UPI_MERCHANT_NAME")?.value?.trim() ||
         process.env.NEXT_PUBLIC_UPI_MERCHANT_NAME ||
-        "Homemart4u";
+        "Fresh Chicken Centre";
       return { vpa, payeeName };
     } catch {
       return {
-        vpa: process.env.UPI_VPA || "syedroshanriyan@okaxis",
-        payeeName: process.env.NEXT_PUBLIC_UPI_MERCHANT_NAME || "Homemart4u",
+        vpa: process.env.UPI_VPA || "7975137618@okbizaxis",
+        payeeName: process.env.NEXT_PUBLIC_UPI_MERCHANT_NAME || "Fresh Chicken Centre",
       };
     }
   }

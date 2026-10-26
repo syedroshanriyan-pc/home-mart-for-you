@@ -9,6 +9,8 @@ export interface UpiPaymentDetails {
   transactionRef?: string;
   note?: string;
   callbackUrl?: string;
+  url?: string;
+  [key: string]: any;
 }
 
 export interface UpiIntentLinks {
@@ -38,6 +40,7 @@ export function buildUpiUri(details: UpiPaymentDetails): string {
     transactionRef = `TXN_${orderNumber}_${Date.now()}`,
     note = `Order ${orderNumber}`,
     callbackUrl,
+    url,
   } = details;
 
   const params = new URLSearchParams();
@@ -47,8 +50,9 @@ export function buildUpiUri(details: UpiPaymentDetails): string {
   params.set("cu", "INR");
   params.set("tn", note);
   params.set("tr", transactionRef);
-  if (callbackUrl) {
-    params.set("url", callbackUrl);
+  const targetUrl = callbackUrl || url;
+  if (targetUrl) {
+    params.set("url", targetUrl);
   }
 
   return `upi://pay?${params.toString()}`;

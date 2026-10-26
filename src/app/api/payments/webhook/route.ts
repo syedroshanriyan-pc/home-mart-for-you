@@ -17,13 +17,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Webhook verification unavailable" }, { status: 500 });
     }
 
+    const clientIp =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      req.headers.get("x-real-ip") ||
+      "127.0.0.1";
+
     const signature =
       req.headers.get("x-webhook-signature") ||
       req.headers.get("x-razorpay-signature") ||
       req.headers.get("x-signature");
 
     const serverSecret = req.headers.get("x-server-secret");
-    const isDirectAuthorized = serverSecret && serverSecret === process.env.AUTH_SECRET;
+    let isDirectAuthorized = false;
+    if (serverSecret && process.env.AUTH_SECRET) {
+      const serverBuf = Buffer.from(serverSecret);
+      const authBuf = Buffer.from(process.env.AUTH_SECRET);
+      if (serverBuf.length === authBuf.length && crypto.timingSafeEqual(serverBuf, authBuf)) {
+        isDirectAuthorized = true;
+      }
+    }
 
     if (!isDirectAuthorized) {
       if (!signature) {
@@ -175,6 +187,14 @@ export async function POST(req: NextRequest) {
 
       // Record authentic bank transaction if txnRef is provided
       if (isSuccess && txnRef && /^\d{12}$/.test(txnRef)) {
+        const existingBankTx = await tx.bankTransaction.findUnique({
+          where: { utr: txnRef },
+        });
+
+        if (existingBankTx && existingBankTx.claimedOrderId && existingBankTx.claimedOrderId !== payment.orderId) {
+          throw new Error(`Transaction reference ${txnRef} is already claimed by order #${existingBankTx.claimedOrderId}.`);
+        }
+
         await tx.bankTransaction.upsert({
           where: { utr: txnRef },
           update: {

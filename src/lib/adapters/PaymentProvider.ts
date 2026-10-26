@@ -680,12 +680,23 @@ export class DynamicUpiQrPaymentAdapter implements IPaymentAdapter {
       };
     }
 
+    // Security Gate: In production without bank ledger entry or gateway API, transaction must be held for reconciliation
+    const isSimulation = process.env.ORDER_SIMULATION_ENABLED === "true";
+    if (isSimulation) {
+      return {
+        verified: true,
+        status: "SUCCESS" as const,
+        providerReference: utr,
+        amountMinor: expectedAmountMinor,
+        currency: "INR",
+        source: "USER_LIVE_PAYMENT" as const,
+      };
+    }
+
     return {
-      verified: true,
-      status: "SUCCESS" as const,
-      providerReference: utr,
-      amountMinor: expectedAmountMinor,
-      currency: "INR",
+      verified: false,
+      status: "REQUIRES_RECONCILIATION" as const,
+      failureReason: `Transaction reference (${utr}) received and pending bank settlement. Your order is safely held for reconciliation without duplicate charging.`,
       source: "USER_LIVE_PAYMENT" as const,
     };
   }

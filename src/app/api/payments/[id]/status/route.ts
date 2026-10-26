@@ -4,13 +4,20 @@ import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { verifyIndianUpiUtr } from "@/lib/upi";
 import { paymentProvider } from "@/lib/adapters/PaymentProvider";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limiter";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const ip = getClientIp(req);
     const { id } = await params;
+
+    const rateLimit = checkRateLimit(`payment-status-get:${id}:${ip}`, { maxRequests: 90, windowMs: 60 * 1000 });
+    if (!rateLimit.allowed) {
+      return NextResponse.json({ error: "Too many payment status requests. Please wait a moment." }, { status: 429 });
+    }
 
     // Fast-path: Direct lookup by unique orderId (indexed)
     let payment = await prisma.payment.findUnique({
@@ -230,7 +237,14 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const ip = getClientIp(req);
     const { id } = await params;
+
+    const rateLimit = checkRateLimit(`payment-status-post:${id}:${ip}`, { maxRequests: 20, windowMs: 60 * 1000 });
+    if (!rateLimit.allowed) {
+      return NextResponse.json({ error: "Too many payment update attempts. Please wait a moment." }, { status: 429 });
+    }
+
     const session = await getSessionUser(req);
 
     const existingPayment = await prisma.payment.findFirst({
@@ -249,10 +263,9 @@ export async function POST(
     }
 
     const isAdmin = session && (session.role === "ADMIN" || session.role === "SUPER_ADMIN" || session.role === "DELIVERY_AGENT");
-    const isOwner = session && session.id === existingPayment.order.userId;
-    const isGuestOrder = !existingPayment.order.userId;
+    const isOwner = session && existingPayment.order.userId && session.id === existingPayment.order.userId;
 
-    if (!isAdmin && !isOwner && !isGuestOrder) {
+    if (!isAdmin && !isOwner) {
       return NextResponse.json({ error: "Unauthorized to update payment status" }, { status: 403 });
     }
 
@@ -432,6 +445,47 @@ export async function POST(
       });
 
       if (!providerRes.verified) {
+        // If bank settlement is pending verification, safely hold for reconciliation
+        if (providerRes.status === "REQUIRES_RECONCILIATION") {
+          const updatedReconPayment = await prisma.$transaction(async (tx) => {
+            const p = await tx.payment.update({
+              where: { id: existingPayment.id },
+              data: {
+                status: "REQUIRES_RECONCILIATION",
+                upiTxnRef: cleanUtr,
+                providerReference: cleanUtr,
+                updatedAt: new Date(),
+              },
+            });
+
+            if (existingPayment.order?.userId) {
+              await tx.auditLog.create({
+                data: {
+                  actorUserId: existingPayment.order.userId,
+                  action: "PAYMENT_FLAGGED_FOR_RECONCILIATION",
+                  entityType: "PAYMENT",
+                  entityId: existingPayment.id,
+                  metadataJson: JSON.stringify({
+                    orderNumber: existingPayment.order.orderNumber,
+                    attemptedUtr: cleanUtr,
+                    status: "REQUIRES_RECONCILIATION",
+                    timestamp: new Date().toISOString(),
+                  }),
+                },
+              });
+            }
+            return p;
+          });
+
+          return NextResponse.json({
+            success: true,
+            paymentStatus: "REQUIRES_RECONCILIATION",
+            requiresReconciliation: true,
+            message: providerRes.failureReason || "Transaction reference received and safely held for reconciliation without duplicate charging.",
+            payment: updatedReconPayment,
+          });
+        }
+
         // Log verification failure
         if (existingPayment.order?.userId) {
           await prisma.auditLog.create({

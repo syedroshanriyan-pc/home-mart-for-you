@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { buildUpiUri, generateUpiIntentLinks, generateUpiQrDataUrl } from "@/lib/upi";
 import { getSessionUser } from "@/lib/auth";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limiter";
 
 // In-memory cache for operational UPI settings to eliminate database bottlenecks
 let settingsCache: { vpa?: string; name?: string; expiry: number } = { expiry: 0 };
@@ -36,6 +37,12 @@ async function getCachedUpiSettings(): Promise<{ vpa: string; payeeName: string 
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = getClientIp(req);
+    const rateLimit = checkRateLimit(`dynamic-qr:${ip}`, { maxRequests: 40, windowMs: 60 * 1000 });
+    if (!rateLimit.allowed) {
+      return NextResponse.json({ error: "Too many dynamic QR requests. Please wait a moment." }, { status: 429 });
+    }
+
     const [session, body] = await Promise.all([
       getSessionUser(req),
       req.json().catch(() => ({})),

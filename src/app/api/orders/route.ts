@@ -13,6 +13,8 @@ import { notificationProvider } from "@/lib/adapters/NotificationProvider";
 import { autoAssignDeliveryPartner } from "@/lib/delivery-assignment";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limiter";
 import { sanitizeText, sanitizeAddress } from "@/lib/security";
+import { allocateUniqueOrderNumber, generateCollisionResistantOrderNumber } from "@/lib/order-number";
+import { Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
   try {
@@ -54,7 +56,7 @@ export async function POST(req: NextRequest) {
     }
 
     const ip = getClientIp(req);
-    const rateLimit = checkRateLimit(`order:${session.id}:${ip}`, { maxRequests: 15, windowMs: 60 * 1000 });
+    const rateLimit = checkRateLimit(`order:${session.id}:${ip}`, { maxRequests: 20, windowMs: 60 * 1000 });
     if (!rateLimit.allowed) {
       return NextResponse.json(
         { error: "Too many order requests. Please wait a moment before trying again." },
@@ -62,7 +64,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const {
       items = [],
       addressId,
@@ -72,11 +74,30 @@ export async function POST(req: NextRequest) {
       notes,
       existingOrderId,
       orderId,
+      idempotencyKey,
     } = body;
 
     const sanitizedNotes = notes ? sanitizeText(notes, 300) : null;
 
-    // Check if an existing order was already created in this checkout session
+    // 1. Check idempotency key first to prevent duplicate orders from double-clicks or retries
+    const cleanIdempotencyKey = idempotencyKey ? String(idempotencyKey).trim() : null;
+    if (cleanIdempotencyKey) {
+      const existingOrderByIdempotency = await prisma.order.findUnique({
+        where: { idempotencyKey: cleanIdempotencyKey },
+        include: { items: true, payment: true },
+      });
+
+      if (existingOrderByIdempotency && existingOrderByIdempotency.userId === session.id) {
+        return NextResponse.json({
+          success: true,
+          order: existingOrderByIdempotency,
+          idempotentReplay: true,
+          message: "Order previously submitted successfully (idempotent replay).",
+        });
+      }
+    }
+
+    // 2. Check if an existing order was already created in this checkout session
     const checkOrderId = existingOrderId || orderId;
     if (checkOrderId) {
       const existingOrder = await prisma.order.findFirst({
@@ -157,7 +178,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Your cart is empty." }, { status: 400 });
     }
 
-    // Determine delivery address
+    // 3. Determine delivery address
     let deliveryAddressObj: any = null;
     if (addressId) {
       deliveryAddressObj = await prisma.address.findFirst({
@@ -183,31 +204,81 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 1. Transactionally validate and build items
+    // 4. Batch query all product variants, options, system settings, and coupons in parallel
+    const variantIds: string[] = Array.from(
+      new Set(items.map((i: any) => String(i.variantId)).filter(Boolean))
+    );
+    const optionIds: string[] = Array.from(
+      new Set(
+        items
+          .flatMap((i: any) => (Array.isArray(i.customizations) ? i.customizations : []))
+          .map((c: any) => String(c.optionId))
+          .filter(Boolean)
+      )
+    );
+
+    const [
+      variants,
+      customizationOptions,
+      systemSettings,
+      couponRecord,
+    ] = await Promise.all([
+      prisma.productVariant.findMany({
+        where: { id: { in: variantIds } },
+        include: {
+          product: { include: { category: true } },
+        },
+      }),
+      optionIds.length > 0
+        ? prisma.customizationOption.findMany({
+            where: { id: { in: optionIds }, isActive: true },
+          })
+        : Promise.resolve([]),
+      prisma.systemSetting.findMany({
+        where: {
+          key: {
+            in: [
+              "SHOP_LAT",
+              "SHOP_LNG",
+              "MIN_QUALIFYING_MEAT_GRAMS",
+              "minimum_order_meat_grams",
+            ],
+          },
+        },
+      }),
+      couponCode
+        ? prisma.coupon.findUnique({ where: { code: String(couponCode).trim().toUpperCase() } })
+        : Promise.resolve(null),
+    ]);
+
+    const variantMap = new Map<string, any>(variants.map((v: any) => [v.id, v]));
+    const optionMap = new Map<string, any>(customizationOptions.map((o: any) => [o.id, o]));
+
+    // 5. Authoritatively validate and build items in-memory
     let subtotalMinor = 0;
     const qualifyingMeatItems: any[] = [];
     const preparedOrderItems: any[] = [];
 
     for (const item of items) {
-      const parsedQty = typeof item.quantity === "number" ? item.quantity : parseInt(String(item.quantity || ""), 10);
+      const parsedQty =
+        typeof item.quantity === "number"
+          ? item.quantity
+          : parseInt(String(item.quantity || ""), 10);
+
       if (!Number.isInteger(parsedQty) || parsedQty < 1 || parsedQty > 50) {
         return NextResponse.json(
-          { error: `Invalid quantity for item "${item.variantId || 'cart item'}". Quantity must be a whole number between 1 and 50.` },
+          {
+            error: `Invalid quantity for item "${item.variantId || 'cart item'}". Quantity must be a whole number between 1 and 50.`,
+          },
           { status: 400 }
         );
       }
       const itemQuantity = parsedQty;
 
-      const variant = await prisma.productVariant.findUnique({
-        where: { id: item.variantId },
-        include: {
-          product: { include: { category: true } },
-        },
-      });
-
+      const variant = variantMap.get(item.variantId);
       if (!variant || !variant.product.isActive) {
         return NextResponse.json(
-          { error: `Item is no longer available in the store.` },
+          { error: `An item in your cart is no longer available in the store.` },
           { status: 400 }
         );
       }
@@ -224,10 +295,8 @@ export async function POST(req: NextRequest) {
       if (item.customizations && Array.isArray(item.customizations)) {
         for (const c of item.customizations) {
           if (c.optionId) {
-            const opt = await prisma.customizationOption.findUnique({
-              where: { id: c.optionId },
-            });
-            if (opt && opt.isActive) {
+            const opt = optionMap.get(c.optionId);
+            if (opt) {
               customizationTotalDelta += opt.priceDeltaMinor;
               verifiedCustomizations.push({
                 group: c.group || "Customization",
@@ -268,16 +337,14 @@ export async function POST(req: NextRequest) {
         unitPriceMinor,
         lineTotalMinor,
         customizationSnapshotJson:
-          verifiedCustomizations.length > 0
-            ? JSON.stringify(verifiedCustomizations)
-            : null,
+          verifiedCustomizations.length > 0 ? JSON.stringify(verifiedCustomizations) : null,
       });
     }
 
-    // 2. Validate Minimum Meat Rule (No 1kg restriction; 0 default)
-    const meatSetting = await prisma.systemSetting.findFirst({
-      where: { key: { in: ["MIN_QUALIFYING_MEAT_GRAMS", "minimum_order_meat_grams"] } },
-    });
+    // 6. Validate Minimum Meat Rule
+    const meatSetting = systemSettings.find(
+      (s) => s.key === "MIN_QUALIFYING_MEAT_GRAMS" || s.key === "minimum_order_meat_grams"
+    );
     const minMeatThreshold = meatSetting ? parseInt(meatSetting.value, 10) : 0;
     const meatValidation = validateMinimumMeatOrder(qualifyingMeatItems, minMeatThreshold);
     if (!meatValidation.isValid) {
@@ -287,9 +354,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. Calculate distance and delivery fee
-    const shopLatSetting = await prisma.systemSetting.findUnique({ where: { key: "SHOP_LAT" } });
-    const shopLngSetting = await prisma.systemSetting.findUnique({ where: { key: "SHOP_LNG" } });
+    // 7. Calculate distance and delivery fee
+    const shopLatSetting = systemSettings.find((s) => s.key === "SHOP_LAT");
+    const shopLngSetting = systemSettings.find((s) => s.key === "SHOP_LNG");
     const shopCoords = {
       lat: shopLatSetting ? parseFloat(shopLatSetting.value) : DEFAULT_SHOP_COORDINATES.lat,
       lng: shopLngSetting ? parseFloat(shopLngSetting.value) : DEFAULT_SHOP_COORDINATES.lng,
@@ -301,131 +368,176 @@ export async function POST(req: NextRequest) {
       destLat,
       destLng
     );
-
     const deliveryFeeMinor = calculateDeliveryFeePaise(deliveryDistanceMeters);
 
-    // 4. Validate Coupon
+    // 8. Validate Coupon
     let discountMinor = 0;
     let validCouponId: string | null = null;
     let couponCodeSnapshot: string | null = null;
 
-    if (couponCode) {
-      const coupon = await prisma.coupon.findUnique({
-        where: { code: couponCode.trim().toUpperCase() },
+    if (couponRecord) {
+      const userUsageCount = await prisma.couponRedemption.count({
+        where: { couponId: couponRecord.id, userId: session.id },
       });
 
-      if (coupon) {
-        const userUsageCount = await prisma.couponRedemption.count({
-          where: { couponId: coupon.id, userId: session.id },
-        });
-
-        const evaluation = evaluateCoupon(coupon, subtotalMinor, deliveryFeeMinor, userUsageCount);
-        if (evaluation.isValid) {
-          discountMinor = evaluation.discountMinor;
-          validCouponId = coupon.id;
-          couponCodeSnapshot = coupon.code;
-        }
+      const evaluation = evaluateCoupon(
+        couponRecord,
+        subtotalMinor,
+        deliveryFeeMinor,
+        userUsageCount
+      );
+      if (evaluation.isValid) {
+        discountMinor = evaluation.discountMinor;
+        validCouponId = couponRecord.id;
+        couponCodeSnapshot = couponRecord.code;
       }
     }
 
-    // 5. COD Surcharge
+    // 9. COD Surcharge & Final Total
     const codFeeMinor = paymentMethod === "COD" ? COD_SURCHARGE_PAISE : 0;
-
-    // 6. Final Total
     const totalMinor = Math.max(0, subtotalMinor - discountMinor + deliveryFeeMinor + codFeeMinor);
 
-    // 7. Generate Sequential Order Number
-    const count = await prisma.order.count();
-    const orderNumber = `FC-${1000 + count + 1}`;
+    // 10. Atomic Order Creation with Bounded Retry on OrderNumber Collision (P2002)
+    let newOrder: any = null;
+    let lastCollisionError: any = null;
+    const MAX_ORDER_ATTEMPTS = 4;
 
-    // 8. Create Order in atomic database transaction
-    const newOrder = await prisma.$transaction(async (tx) => {
-      const order = await tx.order.create({
-        data: {
-          orderNumber,
-          userId: session.id,
-          status: "PLACED",
-          subtotalMinor,
-          discountMinor,
-          deliveryFeeMinor,
-          codFeeMinor,
-          totalMinor,
-          deliveryDistanceMeters,
-          deliveryLatitude: destLat,
-          deliveryLongitude: destLng,
-          deliveryAddressSnapshot: JSON.stringify(deliveryAddressObj),
-          couponId: validCouponId,
-          couponCodeSnapshot,
-          notes: sanitizedNotes,
-          items: {
-            create: preparedOrderItems,
-          },
-          payment: {
-            create: {
-              method: paymentMethod,
-              status: "PENDING",
-              amountMinor: totalMinor,
-              provider: paymentMethod === "COD" ? "CASH_ON_DELIVERY" : "UPI_DYNAMIC_QR",
-              providerReference: `${paymentMethod}_${orderNumber}_${Date.now()}`,
+    for (let attempt = 1; attempt <= MAX_ORDER_ATTEMPTS; attempt++) {
+      try {
+        const orderNumber = await allocateUniqueOrderNumber();
+
+        newOrder = await prisma.$transaction(async (tx) => {
+          const order = await tx.order.create({
+            data: {
+              orderNumber,
+              userId: session.id,
+              status: "PLACED",
+              idempotencyKey: cleanIdempotencyKey || undefined,
+              subtotalMinor,
+              discountMinor,
+              deliveryFeeMinor,
+              codFeeMinor,
+              totalMinor,
+              deliveryDistanceMeters,
+              deliveryLatitude: destLat,
+              deliveryLongitude: destLng,
+              deliveryAddressSnapshot: JSON.stringify(deliveryAddressObj),
+              couponId: validCouponId,
+              couponCodeSnapshot,
+              notes: sanitizedNotes,
+              items: {
+                create: preparedOrderItems,
+              },
+              payment: {
+                create: {
+                  method: paymentMethod,
+                  status: "PENDING",
+                  amountMinor: totalMinor,
+                  provider: paymentMethod === "COD" ? "CASH_ON_DELIVERY" : "GATEWAY_UPI",
+                  providerReference: `${paymentMethod}_${orderNumber}_${Date.now()}`,
+                },
+              },
             },
-          },
-        },
-        include: {
-          items: true,
-          payment: true,
-        },
-      });
+            include: {
+              items: true,
+              payment: true,
+            },
+          });
 
-      if (validCouponId) {
-        await tx.couponRedemption.create({
-          data: {
-            couponId: validCouponId,
-            userId: session.id,
-            orderId: order.id,
-            discountMinor,
-          },
+          if (validCouponId) {
+            await tx.couponRedemption.create({
+              data: {
+                couponId: validCouponId,
+                userId: session.id,
+                orderId: order.id,
+                discountMinor,
+              },
+            });
+          }
+
+          await tx.auditLog.create({
+            data: {
+              actorUserId: session.id,
+              action: "ORDER_CREATED",
+              entityType: "ORDER",
+              entityId: order.id,
+              metadataJson: JSON.stringify({
+                orderNumber,
+                totalMinor,
+                itemCount: items.length,
+                paymentMethod,
+                idempotencyKey: cleanIdempotencyKey,
+              }),
+            },
+          });
+
+          return order;
         });
+
+        // Successfully created! Break out of collision retry loop.
+        break;
+      } catch (err: any) {
+        if (
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === "P2002" &&
+          (err.meta?.target as any)?.includes?.("orderNumber")
+        ) {
+          lastCollisionError = err;
+          console.warn(`Order number collision detected (attempt ${attempt}/${MAX_ORDER_ATTEMPTS}), retrying...`);
+          continue;
+        }
+        // If it's a P2002 on idempotencyKey, return the existing order
+        if (
+          cleanIdempotencyKey &&
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === "P2002" &&
+          (err.meta?.target as any)?.includes?.("idempotencyKey")
+        ) {
+          const existing = await prisma.order.findUnique({
+            where: { idempotencyKey: cleanIdempotencyKey },
+            include: { items: true, payment: true },
+          });
+          if (existing) {
+            return NextResponse.json({
+              success: true,
+              order: existing,
+              idempotentReplay: true,
+              message: "Order placed successfully (concurrent idempotency resolution).",
+            });
+          }
+        }
+        throw err;
       }
-
-      await tx.auditLog.create({
-        data: {
-          actorUserId: session.id,
-          action: "ORDER_CREATED",
-          entityType: "ORDER",
-          entityId: order.id,
-          metadataJson: JSON.stringify({
-            orderNumber,
-            totalMinor,
-            itemCount: items.length,
-            paymentMethod,
-          }),
-        },
-      });
-
-      return order;
-    });
-
-    // 9. Dispatch transactional notification
-    await notificationProvider.sendTransactional({
-      userId: session.id,
-      orderNumber: newOrder.orderNumber,
-      type: "ORDER_PLACED",
-      recipientName: session.name,
-      recipientPhone: session.mobile,
-      metadata: { totalMinor },
-    });
-
-    // 10. Automated sequence-wise delivery partner assignment
-    try {
-      await autoAssignDeliveryPartner(newOrder.id);
-    } catch (assignErr) {
-      console.warn("Automated sequence assignment notice:", assignErr);
     }
 
-    return NextResponse.json({
-      success: true,
-      order: newOrder,
-    });
+    if (!newOrder) {
+      throw lastCollisionError || new Error("Failed to allocate unique order number after retries.");
+    }
+
+    // 11. Transactional notifications & automated delivery assignment in background
+    Promise.allSettled([
+      notificationProvider.sendTransactional({
+        userId: session.id,
+        orderNumber: newOrder.orderNumber,
+        type: "ORDER_PLACED",
+        recipientName: session.name,
+        recipientPhone: session.mobile,
+        metadata: { totalMinor },
+      }),
+      autoAssignDeliveryPartner(newOrder.id),
+    ]).catch((err) => console.warn("Background notification/assignment error:", err));
+
+    return NextResponse.json(
+      {
+        success: true,
+        order: newOrder,
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+        },
+      }
+    );
   } catch (error: any) {
     console.error("Order creation error:", error);
     return NextResponse.json(

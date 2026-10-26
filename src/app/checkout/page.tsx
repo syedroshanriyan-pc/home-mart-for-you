@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
@@ -27,6 +27,7 @@ export default function CheckoutPage() {
     items,
     couponCode,
     validation,
+    previewCalculation,
     clearCart,
     paymentMethod,
     setPaymentMethod,
@@ -43,6 +44,16 @@ export default function CheckoutPage() {
     amountRupees: number;
   } | null>(null);
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+  const idempotencyKeyRef = useRef<string>("");
+
+  useEffect(() => {
+    if (!idempotencyKeyRef.current) {
+      idempotencyKeyRef.current =
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `idemp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    }
+  }, []);
 
   // Redirect if cart is empty
   useEffect(() => {
@@ -92,11 +103,24 @@ export default function CheckoutPage() {
     );
   }
 
-  const subtotalRs = validation ? validation.subtotalMinor / 100 : 0;
-  const discountRs = validation ? validation.discountMinor / 100 : 0;
-  const deliveryRs = validation ? validation.deliveryFeeMinor / 100 : 0;
-  const codFeeRs = validation ? validation.codFeeMinor / 100 : 0;
-  const totalRs = validation ? validation.totalMinor / 100 : 0;
+  const subtotalRs =
+    (validation ? validation.subtotalMinor : previewCalculation.subtotalMinor) / 100;
+  const discountRs =
+    (validation ? validation.discountMinor : previewCalculation.discountMinor) / 100;
+  const deliveryRs =
+    (validation ? validation.deliveryFeeMinor : previewCalculation.deliveryFeeMinor) / 100;
+  const codFeeRs =
+    (paymentMethod === "COD"
+      ? validation
+        ? validation.codFeeMinor
+        : previewCalculation.codFeeMinor
+      : 0) / 100;
+  const totalRs =
+    (validation
+      ? validation.totalMinor
+      : paymentMethod === "COD"
+      ? previewCalculation.totalMinor + previewCalculation.codFeeMinor
+      : previewCalculation.totalMinor) / 100;
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,7 +150,7 @@ export default function CheckoutPage() {
 
         if (switchRes.ok && switchData.success) {
           clearCart();
-          router.push(`/account/orders/${activeOrderId}`);
+          router.push(`/order-success?orderId=${activeOrderId}&method=COD`);
           return;
         }
       } catch {
@@ -137,6 +161,7 @@ export default function CheckoutPage() {
     try {
       const payload = {
         existingOrderId: activeOrderId || undefined,
+        idempotencyKey: idempotencyKeyRef.current || undefined,
         items: items.map((i) => ({
           productId: i.productId,
           variantId: i.variantId,
@@ -187,9 +212,9 @@ export default function CheckoutPage() {
         return;
       }
 
-      // COD: clear cart and redirect to order tracking page
+      // COD: clear cart and redirect to dedicated order success page
       clearCart();
-      router.push(`/account/orders/${data.order.id}`);
+      router.push(`/order-success?orderId=${data.order.id}&method=COD`);
     } catch {
       setErrorMessage("Network error placing order. Please try again.");
       setIsSubmitting(false);
@@ -459,7 +484,7 @@ export default function CheckoutPage() {
               if (switchRes.ok && switchData.success) {
                 clearCart();
                 setUpiOrderData(null);
-                router.push(`/account/orders/${orderIdToSwitch}`);
+                router.push(`/order-success?orderId=${orderIdToSwitch}&method=COD`);
               } else {
                 setErrorMessage(switchData.error || "Failed to switch to COD.");
               }
@@ -470,7 +495,7 @@ export default function CheckoutPage() {
           onSuccess={(finalOrderId) => {
             clearCart();
             setUpiOrderData(null);
-            router.push(`/account/orders/${finalOrderId}`);
+            router.push(`/order-success?orderId=${finalOrderId}&method=ONLINE`);
           }}
         />
       )}

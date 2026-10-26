@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useMemo, useRef } from "react";
 import { useAuth } from "./AuthContext";
 
 export interface CartCustomization {
@@ -39,6 +39,15 @@ export interface ValidationSummary {
   errors: string[];
 }
 
+export interface CartPreviewCalculation {
+  subtotalMinor: number;
+  discountMinor: number;
+  deliveryFeeMinor: number;
+  codFeeMinor: number;
+  totalMinor: number;
+  itemCount: number;
+}
+
 interface CartContextType {
   items: CartItem[];
   itemCount: number;
@@ -46,6 +55,7 @@ interface CartContextType {
   paymentMethod: string;
   setPaymentMethod: (m: string) => void;
   validation: ValidationSummary | null;
+  previewCalculation: CartPreviewCalculation;
   isValidating: boolean;
   addItem: (item: Omit<CartItem, "id">) => void;
   removeItem: (id: string) => void;
@@ -53,7 +63,7 @@ interface CartContextType {
   clearCart: () => void;
   applyCoupon: (code: string) => Promise<boolean>;
   removeCoupon: () => void;
-  revalidate: () => Promise<void>;
+  revalidate: (signal?: AbortSignal) => Promise<void>;
 }
 
 const CartContext = createContext<CartContextType>({
@@ -63,6 +73,14 @@ const CartContext = createContext<CartContextType>({
   paymentMethod: "ONLINE",
   setPaymentMethod: () => {},
   validation: null,
+  previewCalculation: {
+    subtotalMinor: 0,
+    discountMinor: 0,
+    deliveryFeeMinor: 0,
+    codFeeMinor: 0,
+    totalMinor: 0,
+    itemCount: 0,
+  },
   isValidating: false,
   addItem: () => {},
   removeItem: () => {},
@@ -80,6 +98,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [paymentMethod, setPaymentMethod] = useState<string>("ONLINE");
   const [validation, setValidation] = useState<ValidationSummary | null>(null);
   const [isValidating, setIsValidating] = useState<boolean>(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Load cart from localStorage on mount
   useEffect(() => {
@@ -150,8 +169,39 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCouponCode("");
   };
 
-  // Trigger server-side cart revalidation whenever items, address, coupon, or payment method change
-  const revalidate = async () => {
+  // Immediate, memoized client-side preview calculation (sub-millisecond responsiveness)
+  const previewCalculation: CartPreviewCalculation = useMemo(() => {
+    let subtotalMinor = 0;
+    let itemCount = 0;
+
+    for (const item of items) {
+      const customizationDelta = (item.customizations || []).reduce(
+        (sum, c) => sum + (c.priceDeltaMinor || 0),
+        0
+      );
+      const unitPriceMinor = item.unitPriceMinor + customizationDelta;
+      subtotalMinor += unitPriceMinor * item.quantity;
+      itemCount += item.quantity;
+    }
+
+    // COD surcharge is ₹7.00 (700 paise)
+    const codFeeMinor = paymentMethod === "COD" && items.length > 0 ? 700 : 0;
+    const deliveryFeeMinor = validation?.deliveryFeeMinor ?? 0;
+    const discountMinor = validation?.discountMinor ?? 0;
+    const totalMinor = Math.max(0, subtotalMinor - discountMinor + deliveryFeeMinor + codFeeMinor);
+
+    return {
+      subtotalMinor,
+      discountMinor,
+      deliveryFeeMinor,
+      codFeeMinor,
+      totalMinor,
+      itemCount,
+    };
+  }, [items, paymentMethod, validation?.deliveryFeeMinor, validation?.discountMinor]);
+
+  // Server-side authoritative cart revalidation with race condition prevention
+  const revalidate = async (signal?: AbortSignal) => {
     if (items.length === 0) {
       setValidation(null);
       return;
@@ -178,24 +228,47 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+        signal,
       });
 
       if (res.ok) {
         const data = await res.json();
         setValidation(data);
       }
-    } catch (err) {
-      console.error("Cart validation error:", err);
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        console.error("Cart validation error:", err);
+      }
     } finally {
       setIsValidating(false);
     }
   };
 
+  // Debounced server-side validation to avoid excessive fetches and prevent calculation races
   useEffect(() => {
-    revalidate();
-  }, [items, selectedAddress, couponCode, paymentMethod]);
+    if (items.length === 0) {
+      setValidation(null);
+      return;
+    }
 
-  const itemCount = items.reduce((acc, i) => acc + i.quantity, 0);
+    // Cancel any ongoing fetch to prevent out-of-order responses
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    const timer = setTimeout(() => {
+      revalidate(controller.signal);
+    }, 200);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [items, selectedAddress?.id, couponCode, paymentMethod]);
+
+  const itemCount = previewCalculation.itemCount;
 
   return (
     <CartContext.Provider
@@ -206,6 +279,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         paymentMethod,
         setPaymentMethod,
         validation,
+        previewCalculation,
         isValidating,
         addItem,
         removeItem,

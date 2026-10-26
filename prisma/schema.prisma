@@ -153,6 +153,7 @@ model Order {
   couponCodeSnapshot     String?
   notes                  String?
   cancellationReason     String?
+  idempotencyKey         String?   @unique
   placedAt               DateTime  @default(now())
   confirmedAt            DateTime?
   preparingAt            DateTime?
@@ -170,6 +171,9 @@ model Order {
   deliveryAssignment DeliveryAssignment?
   review             Review?
   couponRedemptions  CouponRedemption[]
+
+  @@index([userId, status])
+  @@index([createdAt])
 }
 
 model OrderItem {

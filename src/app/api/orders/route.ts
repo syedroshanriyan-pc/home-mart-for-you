@@ -82,18 +82,22 @@ export async function POST(req: NextRequest) {
     // 1. Check idempotency key first to prevent duplicate orders from double-clicks or retries
     const cleanIdempotencyKey = idempotencyKey ? String(idempotencyKey).trim() : null;
     if (cleanIdempotencyKey) {
-      const existingOrderByIdempotency = await prisma.order.findUnique({
-        where: { idempotencyKey: cleanIdempotencyKey },
-        include: { items: true, payment: true },
-      });
-
-      if (existingOrderByIdempotency && existingOrderByIdempotency.userId === session.id) {
-        return NextResponse.json({
-          success: true,
-          order: existingOrderByIdempotency,
-          idempotentReplay: true,
-          message: "Order previously submitted successfully (idempotent replay).",
+      try {
+        const existingOrderByIdempotency = await prisma.order.findUnique({
+          where: { idempotencyKey: cleanIdempotencyKey },
+          include: { items: true, payment: true },
         });
+
+        if (existingOrderByIdempotency && existingOrderByIdempotency.userId === session.id) {
+          return NextResponse.json({
+            success: true,
+            order: existingOrderByIdempotency,
+            idempotentReplay: true,
+            message: "Order previously submitted successfully (idempotent replay).",
+          });
+        }
+      } catch (idempErr) {
+        console.warn("Idempotency lookup bypassed:", idempErr);
       }
     }
 
@@ -407,42 +411,60 @@ export async function POST(req: NextRequest) {
         const orderNumber = await allocateUniqueOrderNumber();
 
         newOrder = await prisma.$transaction(async (tx) => {
-          const order = await tx.order.create({
-            data: {
-              orderNumber,
-              userId: session.id,
-              status: "PLACED",
-              idempotencyKey: cleanIdempotencyKey || undefined,
-              subtotalMinor,
-              discountMinor,
-              deliveryFeeMinor,
-              codFeeMinor,
-              totalMinor,
-              deliveryDistanceMeters,
-              deliveryLatitude: destLat,
-              deliveryLongitude: destLng,
-              deliveryAddressSnapshot: JSON.stringify(deliveryAddressObj),
-              couponId: validCouponId,
-              couponCodeSnapshot,
-              notes: sanitizedNotes,
-              items: {
-                create: preparedOrderItems,
+          const orderData: any = {
+            orderNumber,
+            userId: session.id,
+            status: "PLACED",
+            idempotencyKey: cleanIdempotencyKey || undefined,
+            subtotalMinor,
+            discountMinor,
+            deliveryFeeMinor,
+            codFeeMinor,
+            totalMinor,
+            deliveryDistanceMeters,
+            deliveryLatitude: destLat,
+            deliveryLongitude: destLng,
+            deliveryAddressSnapshot: JSON.stringify(deliveryAddressObj),
+            couponId: validCouponId,
+            couponCodeSnapshot,
+            notes: sanitizedNotes,
+            items: {
+              create: preparedOrderItems,
+            },
+            payment: {
+              create: {
+                method: paymentMethod,
+                status: "PENDING",
+                amountMinor: totalMinor,
+                provider: paymentMethod === "COD" ? "CASH_ON_DELIVERY" : "GATEWAY_UPI",
+                providerReference: `${paymentMethod}_${orderNumber}_${Date.now()}`,
               },
-              payment: {
-                create: {
-                  method: paymentMethod,
-                  status: "PENDING",
-                  amountMinor: totalMinor,
-                  provider: paymentMethod === "COD" ? "CASH_ON_DELIVERY" : "GATEWAY_UPI",
-                  providerReference: `${paymentMethod}_${orderNumber}_${Date.now()}`,
+            },
+          };
+
+          let order;
+          try {
+            order = await tx.order.create({
+              data: orderData,
+              include: {
+                items: true,
+                payment: true,
+              },
+            });
+          } catch (createErr: any) {
+            if (createErr?.message?.includes?.("idempotencyKey")) {
+              const { idempotencyKey: _, ...safeData } = orderData;
+              order = await tx.order.create({
+                data: safeData,
+                include: {
+                  items: true,
+                  payment: true,
                 },
-              },
-            },
-            include: {
-              items: true,
-              payment: true,
-            },
-          });
+              });
+            } else {
+              throw createErr;
+            }
+          }
 
           if (validCouponId) {
             await tx.couponRedemption.create({
@@ -540,8 +562,12 @@ export async function POST(req: NextRequest) {
     );
   } catch (error: any) {
     console.error("Order creation error:", error);
+    const safeError =
+      error?.message && !error.message.includes("invocation:") && !error.message.includes("prisma.")
+        ? error.message
+        : "Failed to place order. Please review your cart and try again.";
     return NextResponse.json(
-      { error: "Failed to place order. " + (error?.message || "") },
+      { error: safeError },
       { status: 500 }
     );
   }

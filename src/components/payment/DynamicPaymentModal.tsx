@@ -1,30 +1,29 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import Image from "next/image";
 import {
   RefreshCw,
   Clock,
   ArrowRight,
   ChevronRight,
   X,
-  ArrowLeft,
   ShieldCheck,
   XCircle,
   CheckCircle2,
   PhoneCall,
   Banknote,
   Sparkles,
-  ExternalLink,
   QrCode,
-  Smartphone,
-  AlertTriangle,
   HelpCircle,
+  Copy,
+  Check,
+  Smartphone,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
 // ============================================================================
-// AUTHENTIC BRAND SVG LOGOS (PIXEL-PERFECT FINTECH ICONS)
+// AUTHENTIC BRAND SVG LOGOS (OFFICIAL FINTECH ASSETS)
 // ============================================================================
 
 const GooglePayLogo = () => (
@@ -87,8 +86,9 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
   const [isSwitchingCod, setIsSwitchingCod] = useState(false);
   const [qrCodeImage, setQrCodeImage] = useState<string>("");
   const [qrPayload, setQrPayload] = useState<string>("");
-  const [showMobileApps, setShowMobileApps] = useState(false);
+  const [payeeName, setPayeeName] = useState<string>("Fresh Chicken Centre");
   const [launchingApp, setLaunchingApp] = useState<string | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // Intent links state
   const [intentLinks, setIntentLinks] = useState<{
@@ -129,7 +129,6 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
     typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent);
   const isIos = () =>
     typeof navigator !== "undefined" && /iPhone|iPad|iPod/i.test(navigator.userAgent);
-  const isMobile = () => isAndroid() || isIos();
 
   // Debounced UPI app launcher
   const launchUpiApp = (appName: string, url: string) => {
@@ -145,13 +144,24 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
     }, 2500);
   };
 
+  // Safe clipboard copy for payment URI
+  const handleCopyPaymentLink = async () => {
+    if (!qrPayload) return;
+    try {
+      await navigator.clipboard.writeText(qrPayload);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2500);
+    } catch {
+      // Fallback if clipboard API restricted
+    }
+  };
+
   // 1. Initialize Dynamic QR payment session
   const initPaymentSession = async () => {
     setLoading(true);
     setPaymentStatus("PENDING");
     setErrorMessage("");
     setFailureReason("");
-    setShowMobileApps(false);
     setLaunchingApp(null);
 
     try {
@@ -165,6 +175,9 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
         const dynamicQrSrc = data.qrImageUrl || data.qrCode || (data as Record<string, string>)["qr" + "DataUrl"] || "";
         setQrCodeImage(dynamicQrSrc);
         setQrPayload(data.rawUpiUrl || "");
+        if (data.payeeName) {
+          setPayeeName(data.payeeName);
+        }
         setIntentLinks({
           gpayUrl: data.intentLinks?.gpayUrl || data.rawUpiUrl,
           phonepeUrl: data.intentLinks?.phonepeUrl || data.rawUpiUrl,
@@ -197,7 +210,7 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
     initPaymentSession();
   }, [isOpen, orderId, orderNumber, amountRupees]);
 
-  // 2. AUTOMATIC PAYMENT STATUS DETECTION: Polls backend to detect webhook or payment confirmation
+  // 2. AUTOMATIC PAYMENT STATUS DETECTION: Polls backend live
   useEffect(() => {
     if (
       !isOpen ||
@@ -331,21 +344,22 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-charcoal-900/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col max-h-[94vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-stone-900/75 backdrop-blur-sm animate-fade-in">
+      <div className="relative w-full max-w-md bg-white rounded-2xl shadow-xl border border-stone-200 overflow-hidden flex flex-col max-h-[94vh]">
+        
         {/* ============================================================ */}
         {/* MODAL HEADER                                                */}
         {/* ============================================================ */}
-        <div className="px-5 py-4 bg-gradient-to-r from-stone-900 to-stone-800 text-white flex items-center justify-between">
+        <div className="px-5 py-3.5 bg-stone-900 text-white flex items-center justify-between border-b border-stone-800">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-400/30 flex items-center justify-center">
-              <QrCode className="w-4 h-4" />
+            <div className="w-8 h-8 rounded-lg bg-stone-800 text-stone-200 border border-stone-700 flex items-center justify-center">
+              <QrCode className="w-4 h-4 text-emerald-400" />
             </div>
             <div>
-              <span className="text-[10px] font-mono tracking-widest text-amber-400 uppercase font-bold block">
+              <span className="text-[10px] font-mono tracking-widest text-emerald-400 uppercase font-semibold block">
                 Homemart4u Pay &bull; Dynamic UPI QR
               </span>
-              <h3 className="font-serif font-bold text-sm text-white">
+              <h3 className="font-serif font-bold text-sm text-stone-100">
                 Order #{orderNumber}
               </h3>
             </div>
@@ -353,14 +367,14 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
 
           <div className="flex items-center gap-2">
             {paymentStatus === "PENDING" && (
-              <div className="flex items-center gap-1 bg-stone-800/80 px-2.5 py-1 rounded-full border border-stone-700 text-[11px] font-mono text-amber-300">
-                <Clock className="w-3 h-3 text-amber-400" />
+              <div className="flex items-center gap-1 bg-stone-800 px-2.5 py-1 rounded-full border border-stone-700 text-[11px] font-mono text-stone-300">
+                <Clock className="w-3 h-3 text-emerald-400" />
                 <span>{formatCountdown(countdown)}</span>
               </div>
             )}
             <button
               onClick={onClose}
-              className="p-1.5 rounded-full hover:bg-white/10 text-stone-300 hover:text-white transition"
+              className="p-1.5 rounded-lg hover:bg-stone-800 text-stone-400 hover:text-white transition"
               aria-label="Close payment modal"
             >
               <X className="w-4 h-4" />
@@ -369,24 +383,22 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
         </div>
 
         {/* ============================================================ */}
-        {/* MODAL BODY (SWITCHABLE VIEWS)                                */}
+        {/* MODAL BODY                                                  */}
         {/* ============================================================ */}
         <div className="p-5 sm:p-6 overflow-y-auto space-y-4">
+          
           {/* ---------------------------------------------------------- */}
           {/* 1. SUCCESS SCREEN (AUTHORITATIVELY VERIFIED ONLY)          */}
           {/* ---------------------------------------------------------- */}
           {paymentStatus === "COMPLETED" ? (
             <div className="py-6 text-center space-y-5 animate-fade-in">
-              <div className="relative mx-auto w-20 h-20 flex items-center justify-center">
-                <div className="absolute inset-0 rounded-full bg-emerald-500/20 animate-ping opacity-75" />
-                <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-600/30">
-                  <CheckCircle2 className="w-10 h-10 stroke-[2.2]" />
-                </div>
+              <div className="relative mx-auto w-16 h-16 flex items-center justify-center rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <CheckCircle2 className="w-9 h-9 stroke-[2.2] text-emerald-600" />
               </div>
 
               <div className="space-y-1.5">
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
-                  <Sparkles className="w-3 h-3 text-emerald-600" />
+                <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  <Sparkles className="w-3 h-3 text-emerald-700" />
                   Payment Verified
                 </span>
                 <h3 className="font-serif text-2xl font-bold text-stone-900">
@@ -398,12 +410,12 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
               </div>
 
               {/* Kitchen confirmation disclosure */}
-              <div className="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-3.5 text-left space-y-1.5">
-                <div className="flex items-center gap-2 text-amber-800 font-bold text-xs">
-                  <Clock className="w-4 h-4 text-amber-600 flex-shrink-0" />
-                  <span>Kitchen Notification Dispatched</span>
+              <div className="bg-stone-50 border border-stone-200 rounded-xl p-3.5 text-left space-y-1">
+                <div className="flex items-center gap-2 text-stone-800 font-semibold text-xs">
+                  <Clock className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  <span>Order Transferred to Kitchen</span>
                 </div>
-                <p className="text-[11px] text-amber-700 leading-relaxed">
+                <p className="text-[11px] text-stone-600 leading-relaxed">
                   Your payment has been received by the store. The <strong>20-minute delivery countdown begins once confirmed by admin</strong>.
                 </p>
               </div>
@@ -412,7 +424,7 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
                 <Button
                   variant="primary"
                   onClick={() => onSuccess(orderId)}
-                  className="w-full py-3 text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md"
+                  className="w-full py-2.5 text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl shadow-xs"
                 >
                   <span>Track Order Status ({redirectCountdown}s)</span>
                   <ArrowRight className="w-4 h-4 ml-1" />
@@ -424,19 +436,19 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
           /* ---------------------------------------------------------- */
           paymentStatus === "EXPIRED" ? (
             <div className="py-6 text-center space-y-4 animate-fade-in">
-              <div className="relative mx-auto w-16 h-16 flex items-center justify-center rounded-full bg-amber-100 text-amber-700 border border-amber-300">
-                <Clock className="w-8 h-8" />
+              <div className="relative mx-auto w-14 h-14 flex items-center justify-center rounded-full bg-stone-100 text-stone-600 border border-stone-300">
+                <Clock className="w-7 h-7" />
               </div>
 
               <div className="space-y-1">
-                <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800">
+                <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-stone-100 text-stone-700 border border-stone-300">
                   Session Expired
                 </span>
                 <h3 className="font-serif text-xl font-bold text-stone-900">
                   Payment QR Code Timed Out
                 </h3>
                 <p className="text-xs text-stone-600 max-w-xs mx-auto leading-relaxed">
-                  The 5-minute validity window for this QR session has ended. To protect against delayed duplicate debits, please generate a fresh QR or switch to COD.
+                  The 5-minute validity window for this QR session has ended. To prevent duplicate charges, please generate a fresh QR or switch to Cash on Delivery.
                 </p>
               </div>
 
@@ -444,7 +456,7 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
                 <Button
                   variant="primary"
                   onClick={initPaymentSession}
-                  className="w-full py-3 text-xs font-bold bg-stone-900 hover:bg-stone-800 text-white rounded-xl shadow-sm"
+                  className="w-full py-2.5 text-xs font-bold bg-stone-900 hover:bg-stone-800 text-white rounded-xl shadow-xs"
                 >
                   <RefreshCw className="w-3.5 h-3.5 mr-1" />
                   <span>Generate New Payment QR</span>
@@ -454,10 +466,10 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
                   <button
                     onClick={handleSwitchToCodDirect}
                     disabled={isSwitchingCod}
-                    className="w-full py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold text-xs rounded-xl border border-amber-300 transition flex items-center justify-center gap-1.5"
+                    className="w-full py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-800 font-semibold text-xs rounded-xl border border-stone-300 transition flex items-center justify-center gap-1.5"
                   >
-                    <Banknote className="w-4 h-4 text-amber-700" />
-                    <span>Switch to Cash on Delivery (COD)</span>
+                    <Banknote className="w-4 h-4 text-emerald-700" />
+                    <span>Switch to Cash on Delivery</span>
                   </button>
                 )}
               </div>
@@ -467,12 +479,12 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
           /* ---------------------------------------------------------- */
           paymentStatus === "REQUIRES_RECONCILIATION" ? (
             <div className="py-6 text-center space-y-4 animate-fade-in">
-              <div className="relative mx-auto w-16 h-16 flex items-center justify-center rounded-full bg-blue-100 text-blue-700 border border-blue-300">
-                <HelpCircle className="w-8 h-8" />
+              <div className="relative mx-auto w-14 h-14 flex items-center justify-center rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                <HelpCircle className="w-7 h-7 text-amber-600" />
               </div>
 
               <div className="space-y-1">
-                <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800">
+                <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300">
                   Reconciliation In Progress
                 </span>
                 <h3 className="font-serif text-xl font-bold text-stone-900">
@@ -488,7 +500,7 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
                   variant="outline"
                   onClick={checkPaymentStatusManual}
                   disabled={isManualChecking}
-                  className="w-full py-2.5 text-xs font-bold rounded-xl"
+                  className="w-full py-2 text-xs font-semibold rounded-xl"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 mr-1 ${isManualChecking ? "animate-spin" : ""}`} />
                   <span>Re-check With Bank Network</span>
@@ -496,9 +508,9 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
 
                 <a
                   href={supportTel}
-                  className="w-full py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold text-xs rounded-xl border border-stone-200 transition flex items-center justify-center gap-1.5"
+                  className="w-full py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 font-semibold text-xs rounded-xl border border-stone-200 transition flex items-center justify-center gap-1.5"
                 >
-                  <PhoneCall className="w-3.5 h-3.5 text-amber-600" />
+                  <PhoneCall className="w-3.5 h-3.5 text-stone-600" />
                   <span>Call Store Support: {supportPhoneDisplay}</span>
                 </a>
               </div>
@@ -507,31 +519,28 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
           /* 4. FINAL FAILURE SCREEN                                     */
           /* ---------------------------------------------------------- */
           paymentStatus === "FAILED" ? (
-            <div className="py-6 text-center space-y-5 animate-fade-in">
-              <div className="relative mx-auto w-20 h-20 flex items-center justify-center">
-                <div className="absolute inset-0 rounded-full bg-rose-500/20 animate-ping opacity-60" />
-                <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-rose-500 to-rose-600 text-white flex items-center justify-center shadow-lg shadow-rose-600/30">
-                  <XCircle className="w-10 h-10 stroke-[2.2]" />
-                </div>
+            <div className="py-6 text-center space-y-4 animate-fade-in">
+              <div className="relative mx-auto w-14 h-14 flex items-center justify-center rounded-full bg-rose-50 text-rose-700 border border-rose-200">
+                <XCircle className="w-7 h-7 stroke-[2.2] text-rose-600" />
               </div>
 
-              <div className="space-y-1.5">
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-rose-100 text-rose-800 border border-rose-300">
+              <div className="space-y-1">
+                <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-100 text-rose-800 border border-rose-200">
                   Payment Incomplete
                 </span>
-                <h3 className="font-serif text-2xl font-bold text-stone-900">
+                <h3 className="font-serif text-xl font-bold text-stone-900">
                   Transaction Cancelled
                 </h3>
-                <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 p-2.5 rounded-xl max-w-sm mx-auto leading-relaxed">
+                <p className="text-xs text-rose-700 bg-rose-50 border border-rose-200 p-2.5 rounded-xl max-w-sm mx-auto leading-relaxed">
                   {failureReason || errorMessage || "The payment was cancelled or declined by your UPI bank."}
                 </p>
               </div>
 
-              <div className="space-y-2.5 pt-2">
+              <div className="space-y-2 pt-2 max-w-sm mx-auto">
                 <Button
                   variant="primary"
                   onClick={initPaymentSession}
-                  className="w-full py-3 text-xs font-bold bg-stone-900 hover:bg-stone-800 text-white rounded-xl shadow-sm"
+                  className="w-full py-2.5 text-xs font-bold bg-stone-900 hover:bg-stone-800 text-white rounded-xl shadow-xs"
                 >
                   <RefreshCw className="w-3.5 h-3.5 mr-1" />
                   <span>Retry Dynamic QR Code</span>
@@ -541,39 +550,40 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
                   <button
                     onClick={handleSwitchToCodDirect}
                     disabled={isSwitchingCod}
-                    className="w-full py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold text-xs rounded-xl border border-amber-300 transition flex items-center justify-center gap-1.5"
+                    className="w-full py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-800 font-semibold text-xs rounded-xl border border-stone-300 transition flex items-center justify-center gap-1.5"
                   >
-                    <Banknote className="w-4 h-4 text-amber-700" />
-                    <span>Switch to Cash on Delivery (COD)</span>
+                    <Banknote className="w-4 h-4 text-emerald-700" />
+                    <span>Switch to Cash on Delivery</span>
                   </button>
                 )}
               </div>
 
-              <div className="pt-4 border-t border-stone-100 text-center space-y-1.5">
-                <p className="text-[11px] text-stone-500 leading-relaxed">
-                  Amount deducted from bank account? Call store support with order #{orderNumber}.
+              <div className="pt-3 border-t border-stone-200 text-center space-y-1">
+                <p className="text-[11px] text-stone-500">
+                  Amount deducted? Contact store support with order #{orderNumber}.
                 </p>
                 <a
                   href={supportTel}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-stone-800 hover:text-amber-700 transition"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-800 hover:underline"
                 >
-                  <PhoneCall className="w-3.5 h-3.5 text-amber-600" />
+                  <PhoneCall className="w-3 h-3 text-stone-600" />
                   <span>{supportPhoneDisplay}</span>
                 </a>
               </div>
             </div>
           ) : (
             /* ---------------------------------------------------------- */
-            /* 5. PRIMARY VIEW: STRUCTURED FINTECH APPLICATION BLOCKS    */
+            /* 5. PRIMARY VIEW: REFINED FINTECH EXPERIENCE                */
             /* ---------------------------------------------------------- */
             <div className="space-y-4 animate-fade-in">
+              
               {/* BLOCK 1: ORDER AMOUNT BANNER */}
-              <div className="bg-stone-50 rounded-2xl p-4 border border-stone-200/90 flex items-center justify-between shadow-xs">
+              <div className="bg-stone-50 rounded-xl p-3.5 border border-stone-200 flex items-center justify-between">
                 <div className="text-left">
-                  <span className="text-[10px] text-stone-500 uppercase font-mono font-bold tracking-wider block">
+                  <span className="text-[10px] text-stone-500 uppercase font-mono font-semibold tracking-wider block">
                     Exact Amount to Pay
                   </span>
-                  <span className="text-2xl font-mono font-extrabold text-stone-900 tracking-tight">
+                  <span className="text-2xl font-mono font-bold text-stone-900 tracking-tight">
                     ₹{amountRupees.toFixed(2)}
                   </span>
                 </div>
@@ -584,137 +594,36 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
                   <span className="text-xs font-mono font-bold text-stone-800">
                     #{orderNumber}
                   </span>
-                  <span className="inline-flex items-center gap-1 text-[10px] text-emerald-700 font-semibold mt-0.5 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                  <span className="inline-flex items-center gap-1 text-[10px] text-emerald-800 font-medium mt-0.5 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                     ● Encrypted &amp; Verified
                   </span>
                 </div>
               </div>
 
-              {/* BLOCK 2: 1-TAP UPI PAYMENT APPLICATIONS (SEPARATED CARDS) */}
-              <div className="space-y-2">
+              {/* BLOCK 2: DYNAMIC UPI QR SCANNER (PRIMARY / FAIL-SAFE METHOD) */}
+              <div className="bg-stone-50/70 rounded-xl p-4 border border-stone-200 space-y-3 text-center">
                 <div className="flex items-center justify-between px-1">
-                  <span className="text-xs font-bold text-stone-800 tracking-tight">
-                    Pay Directly via UPI Apps
+                  <div className="flex items-center gap-1.5 text-stone-800 text-xs font-bold">
+                    <QrCode className="w-4 h-4 text-emerald-700" />
+                    <span>Or Scan with Any Phone Camera / UPI App</span>
+                  </div>
+                  <span className="text-[10px] text-stone-500 font-mono">
+                    Payee: {payeeName}
                   </span>
-                  <span className="text-[10px] text-amber-700 font-semibold bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
-                    Instant 1-Tap Pay
-                  </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2.5">
-                  {/* Google Pay Block */}
-                  <button
-                    type="button"
-                    onClick={() => intentLinks?.gpayUrl && launchUpiApp("Google Pay", intentLinks.gpayUrl)}
-                    disabled={!intentLinks?.gpayUrl || !!launchingApp}
-                    className="p-3 rounded-2xl border border-stone-200 hover:border-blue-400 bg-white hover:bg-blue-50/30 text-left transition shadow-xs hover:shadow-sm active:scale-[0.98] group flex flex-col justify-between h-20 disabled:opacity-60 cursor-pointer"
-                  >
-                    <div className="flex items-center justify-between w-full">
-                      <div className="w-8 h-8 rounded-lg bg-stone-50 border border-stone-200/80 flex items-center justify-center p-1 group-hover:scale-105 transition">
-                        <GooglePayLogo />
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-stone-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition" />
-                    </div>
-                    <div>
-                      <span className="text-xs font-bold text-stone-900 block leading-none">
-                        Google Pay
-                      </span>
-                      <span className="text-[10px] text-stone-500 mt-1 block">
-                        Direct Transfer
-                      </span>
-                    </div>
-                  </button>
-
-                  {/* PhonePe Block */}
-                  <button
-                    type="button"
-                    onClick={() => intentLinks?.phonepeUrl && launchUpiApp("PhonePe", intentLinks.phonepeUrl)}
-                    disabled={!intentLinks?.phonepeUrl || !!launchingApp}
-                    className="p-3 rounded-2xl border border-stone-200 hover:border-purple-400 bg-white hover:bg-purple-50/30 text-left transition shadow-xs hover:shadow-sm active:scale-[0.98] group flex flex-col justify-between h-20 disabled:opacity-60 cursor-pointer"
-                  >
-                    <div className="flex items-center justify-between w-full">
-                      <div className="w-8 h-8 rounded-lg bg-purple-50 border border-purple-200/80 flex items-center justify-center p-0.5 group-hover:scale-105 transition">
-                        <PhonePeLogo />
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-stone-400 group-hover:text-purple-600 group-hover:translate-x-0.5 transition" />
-                    </div>
-                    <div>
-                      <span className="text-xs font-bold text-stone-900 block leading-none">
-                        PhonePe
-                      </span>
-                      <span className="text-[10px] text-stone-500 mt-1 block">
-                        Bank Direct
-                      </span>
-                    </div>
-                  </button>
-
-                  {/* Paytm Block */}
-                  <button
-                    type="button"
-                    onClick={() => intentLinks?.paytmUrl && launchUpiApp("Paytm", intentLinks.paytmUrl)}
-                    disabled={!intentLinks?.paytmUrl || !!launchingApp}
-                    className="p-3 rounded-2xl border border-stone-200 hover:border-sky-400 bg-white hover:bg-sky-50/30 text-left transition shadow-xs hover:shadow-sm active:scale-[0.98] group flex flex-col justify-between h-20 disabled:opacity-60 cursor-pointer"
-                  >
-                    <div className="flex items-center justify-between w-full">
-                      <div className="w-8 h-8 rounded-lg bg-sky-50 border border-sky-200/80 flex items-center justify-center p-0.5 group-hover:scale-105 transition">
-                        <PaytmLogo />
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-stone-400 group-hover:text-sky-600 group-hover:translate-x-0.5 transition" />
-                    </div>
-                    <div>
-                      <span className="text-xs font-bold text-stone-900 block leading-none">
-                        Paytm
-                      </span>
-                      <span className="text-[10px] text-stone-500 mt-1 block">
-                        UPI &amp; Wallet
-                      </span>
-                    </div>
-                  </button>
-
-                  {/* Any UPI / BHIM Block */}
-                  <button
-                    type="button"
-                    onClick={() => intentLinks?.genericUrl && launchUpiApp("Any UPI App", intentLinks.genericUrl)}
-                    disabled={!intentLinks?.genericUrl || !!launchingApp}
-                    className="p-3 rounded-2xl border border-stone-200 hover:border-emerald-400 bg-white hover:bg-emerald-50/30 text-left transition shadow-xs hover:shadow-sm active:scale-[0.98] group flex flex-col justify-between h-20 disabled:opacity-60 cursor-pointer"
-                  >
-                    <div className="flex items-center justify-between w-full">
-                      <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200/80 flex items-center justify-center p-0.5 group-hover:scale-105 transition">
-                        <UpiLogo />
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-stone-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition" />
-                    </div>
-                    <div>
-                      <span className="text-xs font-bold text-stone-900 block leading-none">
-                        Any UPI App
-                      </span>
-                      <span className="text-[10px] text-stone-500 mt-1 block">
-                        CRED, BHIM &amp; more
-                      </span>
-                    </div>
-                  </button>
-                </div>
-              </div>
-
-              {/* BLOCK 3: DYNAMIC UPI QR SCANNER */}
-              <div className="bg-stone-50/70 rounded-2xl p-4 border border-stone-200/90 space-y-3 text-center">
-                <div className="flex items-center justify-center gap-1.5 text-stone-700 text-xs font-bold">
-                  <QrCode className="w-4 h-4 text-stone-600" />
-                  <span>Or Scan with Any Phone Camera / UPI App</span>
-                </div>
-
-                <div className="relative mx-auto w-52 h-52 bg-white p-2.5 rounded-2xl border-2 border-stone-200/90 shadow-sm flex items-center justify-center">
+                <div className="relative mx-auto w-48 h-48 bg-white p-2.5 rounded-xl border border-stone-300 shadow-xs flex items-center justify-center">
                   {loading ? (
                     <div className="flex flex-col items-center gap-2 text-stone-400">
-                      <RefreshCw className="w-8 h-8 animate-spin text-amber-600" />
-                      <span className="text-xs">Generating secure QR...</span>
+                      <RefreshCw className="w-7 h-7 animate-spin text-stone-600" />
+                      <span className="text-[11px]">Generating secure QR...</span>
                     </div>
                   ) : qrCodeImage ? (
                     <div className="relative w-full h-full flex items-center justify-center">
                       <img
                         src={qrCodeImage}
-                        alt={`UPI QR Code for Order #${orderNumber}`}
-                        className="w-full h-full object-contain rounded-xl"
+                        alt={`UPI Payment QR for Order #${orderNumber}`}
+                        className="w-full h-full object-contain rounded-lg"
                       />
                     </div>
                   ) : (
@@ -724,10 +633,37 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
                   )}
                 </div>
 
+                <p className="text-[11px] text-stone-600 max-w-xs mx-auto leading-relaxed">
+                  Open Google Pay, PhonePe, Paytm, or your bank app camera to scan and pay.
+                </p>
+
+                {/* Copy Payment Link Option */}
+                {qrPayload && (
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      onClick={handleCopyPaymentLink}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-medium text-stone-700 bg-white hover:bg-stone-100 border border-stone-200 transition"
+                    >
+                      {copiedLink ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-emerald-600" />
+                          <span className="text-emerald-700 font-semibold">Payment Link Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5 text-stone-500" />
+                          <span>Copy Payment Link</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+
                 {/* Live Status Pulse & Manual Verification Trigger */}
-                <div className="space-y-2 pt-1">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-800 text-[11px] font-bold rounded-full border border-emerald-200 animate-pulse">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <div className="space-y-2 pt-2 border-t border-stone-200/80">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-50 text-emerald-800 text-[10px] font-semibold rounded-full border border-emerald-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
                     <span>Awaiting payment confirmation from bank...</span>
                   </div>
 
@@ -736,7 +672,7 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
                       type="button"
                       disabled={isManualChecking}
                       onClick={checkPaymentStatusManual}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-stone-700 hover:text-stone-900 bg-white hover:bg-stone-100 border border-stone-200 transition shadow-xs cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium text-stone-700 hover:text-stone-900 bg-white hover:bg-stone-100 border border-stone-200 transition shadow-xs cursor-pointer"
                     >
                       <RefreshCw className={`w-3.5 h-3.5 ${isManualChecking ? "animate-spin" : ""}`} />
                       <span>Check Bank Status Now</span>
@@ -745,15 +681,125 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
                 </div>
               </div>
 
+              {/* BLOCK 3: 1-TAP UPI PAYMENT APPLICATIONS (SEPARATED CARDS) */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-xs font-bold text-stone-800 tracking-tight">
+                    Pay Directly via UPI Apps
+                  </span>
+                  <span className="text-[10px] text-stone-600 bg-stone-100 px-2 py-0.5 rounded-md border border-stone-200">
+                    Mobile 1-Tap
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  {/* Google Pay Block */}
+                  <button
+                    type="button"
+                    onClick={() => intentLinks?.gpayUrl && launchUpiApp("Google Pay", intentLinks.gpayUrl)}
+                    disabled={!intentLinks?.gpayUrl || !!launchingApp}
+                    className="p-3 rounded-xl border border-stone-200 hover:border-stone-400 bg-white text-left transition shadow-xs active:scale-[0.99] group flex flex-col justify-between h-20 disabled:opacity-60 cursor-pointer"
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <div className="w-8 h-8 rounded-lg bg-stone-50 border border-stone-200 flex items-center justify-center p-1">
+                        <GooglePayLogo />
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-stone-400 group-hover:text-stone-700 transition" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-semibold text-stone-900 block leading-none">
+                        Google Pay
+                      </span>
+                      <span className="text-[10px] text-stone-500 mt-0.5 block">
+                        {launchingApp === "Google Pay" ? "Opening..." : "Direct Transfer"}
+                      </span>
+                    </div>
+                  </button>
+
+                  {/* PhonePe Block */}
+                  <button
+                    type="button"
+                    onClick={() => intentLinks?.phonepeUrl && launchUpiApp("PhonePe", intentLinks.phonepeUrl)}
+                    disabled={!intentLinks?.phonepeUrl || !!launchingApp}
+                    className="p-3 rounded-xl border border-stone-200 hover:border-stone-400 bg-white text-left transition shadow-xs active:scale-[0.99] group flex flex-col justify-between h-20 disabled:opacity-60 cursor-pointer"
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <div className="w-8 h-8 rounded-lg bg-stone-50 border border-stone-200 flex items-center justify-center p-0.5">
+                        <PhonePeLogo />
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-stone-400 group-hover:text-stone-700 transition" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-semibold text-stone-900 block leading-none">
+                        PhonePe
+                      </span>
+                      <span className="text-[10px] text-stone-500 mt-0.5 block">
+                        {launchingApp === "PhonePe" ? "Opening..." : "Bank Direct"}
+                      </span>
+                    </div>
+                  </button>
+
+                  {/* Paytm Block */}
+                  <button
+                    type="button"
+                    onClick={() => intentLinks?.paytmUrl && launchUpiApp("Paytm", intentLinks.paytmUrl)}
+                    disabled={!intentLinks?.paytmUrl || !!launchingApp}
+                    className="p-3 rounded-xl border border-stone-200 hover:border-stone-400 bg-white text-left transition shadow-xs active:scale-[0.99] group flex flex-col justify-between h-20 disabled:opacity-60 cursor-pointer"
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <div className="w-8 h-8 rounded-lg bg-stone-50 border border-stone-200 flex items-center justify-center p-0.5">
+                        <PaytmLogo />
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-stone-400 group-hover:text-stone-700 transition" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-semibold text-stone-900 block leading-none">
+                        Paytm
+                      </span>
+                      <span className="text-[10px] text-stone-500 mt-0.5 block">
+                        {launchingApp === "Paytm" ? "Opening..." : "UPI & Wallet"}
+                      </span>
+                    </div>
+                  </button>
+
+                  {/* Any UPI / BHIM Block */}
+                  <button
+                    type="button"
+                    onClick={() => intentLinks?.genericUrl && launchUpiApp("Any UPI App", intentLinks.genericUrl)}
+                    disabled={!intentLinks?.genericUrl || !!launchingApp}
+                    className="p-3 rounded-xl border border-stone-200 hover:border-stone-400 bg-white text-left transition shadow-xs active:scale-[0.99] group flex flex-col justify-between h-20 disabled:opacity-60 cursor-pointer"
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <div className="w-8 h-8 rounded-lg bg-stone-50 border border-stone-200 flex items-center justify-center p-0.5">
+                        <UpiLogo />
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-stone-400 group-hover:text-stone-700 transition" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-semibold text-stone-900 block leading-none">
+                        Any UPI App
+                      </span>
+                      <span className="text-[10px] text-stone-500 mt-0.5 block">
+                        {launchingApp === "Any UPI App" ? "Opening..." : "CRED, BHIM & more"}
+                      </span>
+                    </div>
+                  </button>
+                </div>
+
+                <p className="text-[10px] text-stone-500 leading-normal px-1">
+                  Note: If your payment app displays a bank security alert during direct 1-tap intent, please use the QR Code scan above or select Cash on Delivery.
+                </p>
+              </div>
+
               {/* BLOCK 4: TELEPHONE SUPPORT HELP DESK */}
-              <div className="bg-stone-50/50 rounded-2xl p-3.5 border border-stone-200/70 text-left space-y-1">
-                <div className="flex items-center gap-1.5 text-stone-800 font-bold text-xs">
-                  <PhoneCall className="w-3.5 h-3.5 text-amber-600" />
+              <div className="bg-stone-50 rounded-xl p-3 border border-stone-200 text-left space-y-1">
+                <div className="flex items-center gap-1.5 text-stone-800 font-semibold text-xs">
+                  <PhoneCall className="w-3.5 h-3.5 text-emerald-700" />
                   <span>Payment issue? Raise a complaint</span>
                 </div>
                 <p className="text-[11px] text-stone-500 leading-relaxed">
                   Payment deducted, pending, or not reflected? Contact Homemart4u Support for assistance with your order:{" "}
-                  <a href={supportTel} className="font-bold text-stone-800 hover:underline">
+                  <a href={supportTel} className="font-semibold text-stone-800 hover:underline">
                     {supportPhoneDisplay}
                   </a>
                 </p>
@@ -772,9 +818,9 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
         {/* MODAL FOOTER                                                */}
         {/* ============================================================ */}
         {paymentStatus !== "COMPLETED" && (
-          <div className="px-5 py-3.5 bg-stone-50 border-t border-stone-200 flex items-center justify-between text-xs">
+          <div className="px-5 py-3 bg-stone-50 border-t border-stone-200 flex items-center justify-between text-xs">
             <span className="text-[11px] text-stone-500 flex items-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
               <span>NPCI Encrypted Dynamic QR</span>
             </span>
 
@@ -783,9 +829,9 @@ export const DynamicPaymentModal: React.FC<DynamicPaymentModalProps> = ({
                 type="button"
                 onClick={handleSwitchToCodDirect}
                 disabled={isSwitchingCod}
-                className="font-bold text-amber-800 hover:text-amber-900 transition flex items-center gap-1 hover:underline text-[11px]"
+                className="font-semibold text-stone-700 hover:text-stone-900 transition flex items-center gap-1 hover:underline text-[11px]"
               >
-                <Banknote className="w-3.5 h-3.5 text-amber-600" />
+                <Banknote className="w-3.5 h-3.5 text-emerald-700" />
                 <span>Switch to Cash on Delivery</span>
               </button>
             )}

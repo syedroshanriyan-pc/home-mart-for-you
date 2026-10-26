@@ -224,14 +224,14 @@ export default function CheckoutPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
       <div className="mb-8">
-        <span className="text-xs uppercase font-semibold text-amberGold-600 tracking-wider">
-          Final Step
+        <span className="text-[11px] uppercase font-mono font-bold text-emerald-800 tracking-wider bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+          Secure Checkout
         </span>
-        <h1 className="font-serif text-2xl sm:text-3xl font-medium text-charcoal-700 mt-1">
-          Review & Place Order
+        <h1 className="font-serif text-2xl sm:text-3xl font-bold text-stone-900 mt-2">
+          Review &amp; Place Order
         </h1>
-        <p className="text-xs text-charcoal-500 mt-0.5">
-          Delivery target: ~20 minutes in Mulbagal. Zero prep until you confirm.
+        <p className="text-xs text-stone-500 mt-1">
+          Direct delivery from Mulbagal Hub &bull; Fresh cut upon order confirmation &bull; Target ~20 minutes
         </p>
       </div>
 
@@ -239,50 +239,56 @@ export default function CheckoutPage() {
         {/* Left: Address & Payment Selection */}
         <div className="lg:col-span-8 space-y-6">
           {/* 1. Delivery Address Card */}
-          <div className="bg-cream-50 rounded-2xl border border-cream-200 p-5 sm:p-6 shadow-subtle space-y-4">
-            <div className="flex items-center justify-between border-b border-cream-200 pb-3">
-              <h2 className="font-serif text-base font-semibold text-charcoal-700 flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-amberGold-600" />
-                <span>1. Delivery Address (Mulbagal)</span>
+          <div className="bg-white rounded-2xl border border-stone-200 p-5 sm:p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+              <h2 className="font-serif text-base font-bold text-stone-900 flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-emerald-700" />
+                <span>1. Delivery Destination (Mulbagal)</span>
               </h2>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setIsLocationModalOpen(true)}
+                className="text-xs font-semibold"
               >
                 {selectedAddress ? "Change Address" : "Add Address"}
               </Button>
             </div>
 
             {selectedAddress ? (
-              <div className="p-4 rounded-xl bg-cream-100/70 border border-cream-200 flex items-start gap-3">
-                <div className="p-2 rounded-lg bg-cream-200 text-charcoal-600 mt-0.5">
-                  <MapPin className="w-4 h-4 text-amberGold-600" />
+              <div className="p-4 rounded-xl bg-stone-50 border border-stone-200 flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-white border border-stone-200 text-stone-700 mt-0.5">
+                  <MapPin className="w-4 h-4 text-emerald-700" />
                 </div>
-                <div>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-charcoal-500 text-cream-50">
-                    {selectedAddress.label}
-                  </span>
-                  <p className="text-sm font-medium text-charcoal-700 mt-1">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-stone-900 text-white">
+                      {selectedAddress.label}
+                    </span>
+                    <span className="text-xs text-stone-500 font-mono">Mulbagal Central</span>
+                  </div>
+                  <p className="text-sm font-semibold text-stone-900">
                     {selectedAddress.addressLine}
                   </p>
-                  <p className="text-xs text-charcoal-500">
+                  <p className="text-xs text-stone-600">
                     {selectedAddress.locality}, {selectedAddress.city} - {selectedAddress.postalCode || "563131"}
                   </p>
-                  <p className="text-[11px] text-amberGold-600 mt-1 flex items-center gap-1">
-                    <Clock className="w-3 h-3" /> Target ~20 min delivery from Mulbagal Store
+                  <p className="text-[11px] text-emerald-800 font-medium flex items-center gap-1.5 pt-0.5">
+                    <Clock className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>Target delivery: ~20 mins from store confirmation</span>
                   </p>
                 </div>
               </div>
             ) : (
-              <div className="text-center py-6 border border-dashed border-cream-300 rounded-xl space-y-2">
-                <p className="text-xs text-charcoal-500">
-                  No delivery address selected. Please confirm your location.
+              <div className="text-center py-8 border border-dashed border-stone-300 rounded-xl space-y-3 bg-stone-50/50">
+                <p className="text-xs text-stone-600 font-medium">
+                  No delivery address selected. Please confirm your location in Mulbagal to proceed.
                 </p>
                 <Button
                   variant="primary"
                   size="sm"
                   onClick={() => setIsLocationModalOpen(true)}
+                  className="bg-stone-900 hover:bg-stone-800 text-white"
                 >
                   Set Delivery Location
                 </Button>
@@ -291,61 +297,77 @@ export default function CheckoutPage() {
           </div>
 
           {/* 2. Payment Method Card */}
-          <div className="bg-cream-50 rounded-2xl border border-cream-200 p-5 sm:p-6 shadow-subtle space-y-4">
-            <h2 className="font-serif text-base font-semibold text-charcoal-700 flex items-center gap-2 border-b border-cream-200 pb-3">
-              <CreditCard className="w-4 h-4 text-amberGold-600" />
-              <span>2. Choose Payment Method</span>
-            </h2>
+          <div className="bg-white rounded-2xl border border-stone-200 p-5 sm:p-6 shadow-xs space-y-4">
+            <div className="border-b border-stone-100 pb-3 flex items-center justify-between">
+              <h2 className="font-serif text-base font-bold text-stone-900 flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-emerald-700" />
+                <span>2. Choose Payment Method</span>
+              </h2>
+              <span className="text-[11px] font-mono text-stone-500">
+                100% Secure Checkout
+              </span>
+            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Cash on Delivery option */}
-              <button
-                type="button"
-                onClick={() => setPaymentMethod("COD")}
-                className={`p-4 rounded-xl border text-left transition-all flex items-start gap-3 ${
-                  paymentMethod === "COD"
-                    ? "border-amberGold-400 bg-amberGold-50/50 ring-1 ring-amberGold-400"
-                    : "border-cream-300 bg-cream-50 hover:bg-cream-100"
-                }`}
-              >
-                <Banknote className="w-5 h-5 text-amberGold-600 mt-0.5" />
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-charcoal-700">
-                      Cash on Delivery (COD)
-                    </span>
-                    <span className="px-1.5 py-0.5 rounded text-[10px] bg-amberGold-100 text-amberGold-800 font-bold">
-                      +₹7 Fee
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-charcoal-500 mt-1">
-                    Pay cash upon arrival of your package.
-                  </p>
-                </div>
-              </button>
-
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               {/* Online Payment (Prepaid) option */}
               <button
                 type="button"
                 onClick={() => setPaymentMethod("ONLINE")}
-                className={`p-4 rounded-xl border text-left transition-all flex items-start gap-3 ${
+                className={`p-4 rounded-xl border text-left transition-all flex items-start gap-3 cursor-pointer ${
                   paymentMethod !== "COD"
-                    ? "border-amberGold-400 bg-amberGold-50/50 ring-1 ring-amberGold-400"
-                    : "border-cream-300 bg-cream-50 hover:bg-cream-100"
+                    ? "border-emerald-700 bg-emerald-50/30 ring-1 ring-emerald-700 shadow-xs"
+                    : "border-stone-200 bg-white hover:bg-stone-50"
                 }`}
               >
-                <CreditCard className="w-5 h-5 text-emerald-600 mt-0.5" />
-                <div>
+                <div className={`p-2 rounded-lg mt-0.5 ${paymentMethod !== "COD" ? "bg-emerald-100 text-emerald-800" : "bg-stone-100 text-stone-600"}`}>
+                  <CreditCard className="w-4 h-4 text-emerald-700" />
+                </div>
+                <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-charcoal-700">
+                    <span className="text-xs font-bold text-stone-900">
                       Homemart4u Pay (Dynamic UPI QR)
                     </span>
-                    <span className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-800 font-bold">
-                      FREE &bull; FASTEST
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-800 font-bold uppercase tracking-wider">
+                      RECOMMENDED
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded text-[10px] bg-stone-100 text-stone-700 font-mono font-medium">
+                      ZERO FEE
                     </span>
                   </div>
-                  <p className="text-[11px] text-charcoal-500 mt-1">
-                    Homemart4u Pay: Scan Dynamic UPI QR with Google Pay, PhonePe, Paytm, BHIM (Zero fees &amp; instant verification).
+                  <p className="text-[11px] text-stone-600 leading-relaxed pt-0.5">
+                    Dynamic QR scan via Google Pay, PhonePe, Paytm, BHIM &amp; 1-tap mobile UPI options. Instant verification.
+                  </p>
+                </div>
+              </button>
+
+              {/* Cash on Delivery option */}
+              <button
+                type="button"
+                onClick={() => setPaymentMethod("COD")}
+                className={`p-4 rounded-xl border text-left transition-all flex items-start gap-3 cursor-pointer ${
+                  paymentMethod === "COD"
+                    ? "border-stone-900 bg-stone-50 ring-1 ring-stone-900 shadow-xs"
+                    : "border-stone-200 bg-white hover:bg-stone-50"
+                }`}
+              >
+                <div className={`p-2 rounded-lg mt-0.5 ${paymentMethod === "COD" ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-600"}`}>
+                  <Banknote className="w-4 h-4 text-emerald-600" />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-stone-900">
+                      Cash on Delivery (COD)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="px-1.5 py-0.5 rounded text-[10px] bg-stone-100 text-stone-800 font-mono font-bold">
+                      +₹7 Fee
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-stone-600 leading-relaxed pt-0.5">
+                    Pay with physical cash upon package arrival at your doorstep in Mulbagal.
                   </p>
                 </div>
               </button>
@@ -353,84 +375,89 @@ export default function CheckoutPage() {
           </div>
 
           {/* 3. Delivery Instructions */}
-          <div className="bg-cream-50 rounded-2xl border border-cream-200 p-5 shadow-subtle space-y-2">
-            <label className="block text-xs font-semibold text-charcoal-700">
-              Delivery Instructions (Optional)
+          <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-xs space-y-2">
+            <label className="block text-xs font-bold text-stone-800">
+              Delivery Notes (Optional)
             </label>
             <input
               type="text"
-              placeholder="e.g. Leave with security, call on arrival, near clock tower"
+              placeholder="e.g. Near clock tower, call on arrival, leave with security"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-xs bg-cream-100 border border-cream-300 rounded-xl text-charcoal-700 focus:outline-none focus:ring-2 focus:ring-amberGold-400"
+              className="w-full px-3.5 py-2.5 text-xs bg-stone-50 border border-stone-200 rounded-xl text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-900 focus:bg-white transition"
             />
           </div>
         </div>
 
         {/* Right: Order Summary & Confirmation Button */}
         <div className="lg:col-span-4 space-y-6">
-          <div className="bg-cream-50 p-5 sm:p-6 rounded-2xl border border-cream-200 shadow-subtle space-y-4">
-            <h3 className="font-serif text-base font-medium text-charcoal-700 border-b border-cream-200 pb-3">
-              Order Items ({items.length})
-            </h3>
+          <div className="bg-white p-5 sm:p-6 rounded-2xl border border-stone-200 shadow-xs space-y-4">
+            <div className="border-b border-stone-100 pb-3 flex items-center justify-between">
+              <h3 className="font-serif text-base font-bold text-stone-900">
+                Order Summary
+              </h3>
+              <span className="text-xs font-mono font-medium text-stone-500">
+                {items.length} {items.length === 1 ? "Item" : "Items"}
+              </span>
+            </div>
 
             {/* Itemized List */}
-            <div className="space-y-3 max-h-60 overflow-y-auto pr-1 text-xs">
+            <div className="space-y-3 max-h-60 overflow-y-auto pr-1 text-xs divide-y divide-stone-100">
               {items.map((i) => (
-                <div key={i.id} className="flex justify-between items-start gap-2">
-                  <div>
-                    <span className="font-semibold text-charcoal-700">{i.productName}</span>
-                    <span className="text-charcoal-400 block text-[11px]">
-                      {i.quantity}x {i.variantName}
+                <div key={i.id} className="pt-2 first:pt-0 flex justify-between items-start gap-2">
+                  <div className="space-y-0.5">
+                    <span className="font-semibold text-stone-900 block">{i.productName}</span>
+                    <span className="text-stone-500 block text-[11px]">
+                      {i.quantity} &times; {i.variantName}
                     </span>
                   </div>
-                  <span className="font-mono font-medium text-charcoal-700">
-                    ₹{((i.unitPriceMinor * i.quantity) / 100).toFixed(0)}
+                  <span className="font-mono font-bold text-stone-900">
+                    ₹{((i.unitPriceMinor * i.quantity) / 100).toFixed(2)}
                   </span>
                 </div>
               ))}
             </div>
 
             {/* Bill Breakdown */}
-            <div className="pt-3 border-t border-cream-200 space-y-2 text-xs">
-              <div className="flex justify-between text-charcoal-600">
-                <span>Subtotal</span>
-                <span className="font-mono">₹{subtotalRs.toFixed(2)}</span>
+            <div className="pt-3 border-t border-stone-200 space-y-2 text-xs">
+              <div className="flex justify-between text-stone-600">
+                <span>Product Subtotal</span>
+                <span className="font-mono font-medium text-stone-800">₹{subtotalRs.toFixed(2)}</span>
               </div>
 
               {discountRs > 0 && (
-                <div className="flex justify-between text-emerald-700 font-medium">
-                  <span>Coupon ({couponCode})</span>
+                <div className="flex justify-between text-emerald-700 font-semibold">
+                  <span>Coupon Discount ({couponCode})</span>
                   <span className="font-mono">-₹{discountRs.toFixed(2)}</span>
                 </div>
               )}
 
-              <div className="flex justify-between text-charcoal-600">
-                <span>Delivery</span>
-                <span className="font-mono">
+              <div className="flex justify-between text-stone-600">
+                <span>Delivery Charges</span>
+                <span className="font-mono font-medium text-stone-800">
                   {deliveryRs === 0 ? "FREE" : `₹${deliveryRs.toFixed(2)}`}
                 </span>
               </div>
 
               {paymentMethod === "COD" && (
-                <div className="flex justify-between text-charcoal-600">
-                  <span>COD Surcharge</span>
-                  <span className="font-mono">₹{codFeeRs.toFixed(2)}</span>
+                <div className="flex justify-between text-stone-600">
+                  <span>COD Convenience Surcharge</span>
+                  <span className="font-mono font-medium text-stone-800">₹{codFeeRs.toFixed(2)}</span>
                 </div>
               )}
 
-              <div className="pt-3 border-t border-cream-200 flex justify-between items-baseline text-sm">
-                <span className="font-serif font-bold text-charcoal-800">
-                  Final Payable Amount
+              <div className="pt-3 border-t border-stone-200 flex justify-between items-baseline">
+                <span className="font-serif font-bold text-stone-900 text-sm">
+                  Final Amount Payable
                 </span>
-                <span className="font-serif text-xl font-bold text-charcoal-800 font-mono">
+                <span className="font-mono text-xl font-bold text-stone-900">
                   ₹{totalRs.toFixed(2)}
                 </span>
               </div>
             </div>
 
             {errorMessage && (
-              <p className="text-xs text-red-600 bg-red-50 p-3 rounded-xl border border-red-200">
+              <p className="text-xs text-rose-700 bg-rose-50 p-3 rounded-xl border border-rose-200 leading-relaxed">
                 {errorMessage}
               </p>
             )}
@@ -442,19 +469,19 @@ export default function CheckoutPage() {
                 onClick={handlePlaceOrder}
                 isLoading={isSubmitting}
                 disabled={!selectedAddress}
-                className="w-full shadow-card"
+                className="w-full py-3 bg-stone-900 hover:bg-stone-800 text-white rounded-xl shadow-xs font-bold text-sm tracking-wide"
               >
-                <span>Confirm & Place Order &bull; ₹{totalRs.toFixed(0)}</span>
+                <span>Confirm &amp; Place Order &bull; ₹{totalRs.toFixed(0)}</span>
               </Button>
             </div>
 
-            <p className="text-[10px] text-charcoal-500 text-center leading-relaxed">
+            <p className="text-[10px] text-stone-500 text-center leading-relaxed">
               By placing this order, you agree to our{" "}
-              <Link href="/terms-and-conditions" className="underline font-medium text-amberGold-600" target="_blank">
+              <Link href="/terms-and-conditions" className="underline font-medium text-stone-700 hover:text-stone-900" target="_blank">
                 Terms
               </Link>{" "}
               and acknowledge our{" "}
-              <Link href="/cancellation-refund-policy" className="underline font-medium text-amberGold-600" target="_blank">
+              <Link href="/cancellation-refund-policy" className="underline font-medium text-stone-700 hover:text-stone-900" target="_blank">
                 Cancellation &amp; Refund Policy
               </Link>.
             </p>

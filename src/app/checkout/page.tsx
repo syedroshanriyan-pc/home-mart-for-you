@@ -338,14 +338,14 @@ export default function CheckoutPage() {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-charcoal-700">
-                      Online Payment (Prepaid)
+                      Homemart4u Pay (Dynamic UPI QR)
                     </span>
                     <span className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-800 font-bold">
                       FREE &bull; FASTEST
                     </span>
                   </div>
                   <p className="text-[11px] text-charcoal-500 mt-1">
-                    Razorpay Gateway: UPI (GPay/PhonePe), QR, Cards &amp; Netbanking (Auto-validated).
+                    Homemart4u Pay: Scan Dynamic UPI QR with Google Pay, PhonePe, Paytm, BHIM (Zero fees &amp; instant verification).
                   </p>
                 </div>
               </button>

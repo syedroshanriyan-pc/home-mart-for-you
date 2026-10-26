@@ -97,6 +97,7 @@ export async function POST(req: NextRequest) {
       transactionRef,
       note: `Payment for Order ${orderNumber}`,
       callbackUrl,
+      mc: process.env.UPI_MCC || undefined,
     };
 
     const upiUri = buildUpiUri(upiDetails);

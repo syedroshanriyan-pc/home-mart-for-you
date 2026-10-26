@@ -128,27 +128,22 @@ export class Homemart4uPayEngine {
       "https://homemart4u.vercel.app";
     const callbackUrl = `${appUrl}/order-success?orderId=${orderId}&method=ONLINE`;
 
-    // NPCI UPI URI with exact minor paise converted to ₹0.00
-    const upiUri = buildUpiUri({
+    const upiPayloadConfig = {
       vpa,
       payeeName,
       amountRupees,
       orderNumber,
       transactionRef: providerReference,
-      note: `Payment for Order #${orderNumber}`,
+      note: `Payment for Order ${orderNumber}`,
       callbackUrl,
-    });
+      mc: process.env.UPI_MCC || undefined,
+    };
+
+    // NPCI UPI URI with exact minor paise converted to ₹0.00
+    const upiUri = buildUpiUri(upiPayloadConfig);
 
     // Deep link intents for mobile app invocation
-    const intentLinks = generateUpiIntentLinks({
-      vpa,
-      payeeName,
-      amountRupees,
-      orderNumber,
-      transactionRef: providerReference,
-      note: `Payment for Order #${orderNumber}`,
-      callbackUrl,
-    });
+    const intentLinks = generateUpiIntentLinks(upiPayloadConfig);
 
     // Generate crisp QR code locally with zero external network dependency
     const qrCodeImage = await QRCode.toDataURL(upiUri, {

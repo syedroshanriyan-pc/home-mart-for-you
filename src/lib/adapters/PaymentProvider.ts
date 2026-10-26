@@ -136,25 +136,19 @@ export class DynamicUpiQrPaymentAdapter implements IPaymentAdapter {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.FRONTEND_URL || "https://homemart4u.vercel.app";
     const callbackUrl = `${appUrl}/order-success?orderId=${orderId}&method=ONLINE`;
 
-    const upiUri = buildUpiUri({
+    const upiPayloadConfig = {
       vpa,
       payeeName,
       amountRupees,
       orderNumber,
       transactionRef: providerReference,
-      note: `Payment for #${orderNumber}`,
+      note: `Payment for Order ${orderNumber}`,
       callbackUrl,
-    });
+      mc: process.env.UPI_MCC || undefined,
+    };
 
-    const intentLinks = generateUpiIntentLinks({
-      vpa,
-      payeeName,
-      amountRupees,
-      orderNumber,
-      transactionRef: providerReference,
-      note: `Payment for #${orderNumber}`,
-      callbackUrl,
-    });
+    const upiUri = buildUpiUri(upiPayloadConfig);
+    const intentLinks = generateUpiIntentLinks(upiPayloadConfig);
 
     // Render crisp high-resolution QR Code
     const qrDataUrl = await QRCode.toDataURL(upiUri, {

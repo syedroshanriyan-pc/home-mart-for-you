@@ -10,6 +10,8 @@ export interface UpiPaymentDetails {
   note?: string;
   callbackUrl?: string;
   url?: string;
+  mc?: string;
+  allowUnverifiedUrl?: boolean;
   [key: string]: any;
 }
 
@@ -28,8 +30,18 @@ export interface UpiIntentLinks {
 }
 
 /**
- * Builds the standard NPCI UPI Payment URI
- * e.g. upi://pay?pa=freshchicken@upi&pn=Fresh%20Chicken&am=250.00&cu=INR&tn=Order_FC-1001&tr=TXN_...&url=...
+ * Builds the standard NPCI UPI Payment URI conforming to NPCI UPI Linking Specifications.
+ *
+ * Example: upi://pay?pa=syedroshanriyan%40okaxis&pn=homemart4u&am=250.00&cu=INR&tn=Order%20FC-1001&tr=TXN_FC-1001_1729000000
+ *
+ * Key NPCI & PSP compliance rules implemented:
+ * 1. RFC 3986 percent-encoding (%20 for spaces instead of +) to prevent parsing errors across UPI scanners.
+ * 2. Sanitize note (strip '#' fragment identifiers) and sanitize transactionRef (max 35 alphanumeric chars).
+ * 3. Omit 'url' parameter for personal/standard VPAs. Under NPCI guidelines (Circular 34 & 94), the 'url'
+ *    parameter is an e-commerce merchant callback restricted to verified merchant accounts with a valid MCC.
+ *    Injecting 'url' on a personal handle (e.g. @okaxis) causes Google Pay, PhonePe, and Axis Bank to reject
+ *    with "Payment not supported for this receiver VPA".
+ * 4. Only include 'mc' (Merchant Category Code) if an authentic 4-digit MCC is configured; never invent one.
  */
 export function buildUpiUri(details: UpiPaymentDetails): string {
   const {
@@ -37,25 +49,72 @@ export function buildUpiUri(details: UpiPaymentDetails): string {
     payeeName,
     amountRupees,
     orderNumber,
-    transactionRef = `TXN_${orderNumber}_${Date.now()}`,
-    note = `Order ${orderNumber}`,
+    transactionRef,
+    note,
     callbackUrl,
     url,
+    mc,
+    allowUnverifiedUrl,
   } = details;
 
-  const params = new URLSearchParams();
-  params.set("pa", vpa);
-  params.set("pn", payeeName);
-  params.set("am", amountRupees.toFixed(2));
-  params.set("cu", "INR");
-  params.set("tn", note);
-  params.set("tr", transactionRef);
-  const targetUrl = callbackUrl || url;
-  if (targetUrl) {
-    params.set("url", targetUrl);
+  if (!vpa || !vpa.trim()) {
+    throw new Error("UPI VPA (pa) is mandatory");
+  }
+  if (!payeeName || !payeeName.trim()) {
+    throw new Error("UPI Payee Name (pn) is mandatory");
+  }
+  if (typeof amountRupees === "number" && (isNaN(amountRupees) || amountRupees <= 0)) {
+    throw new Error("UPI Amount (am) must be a positive number greater than zero");
   }
 
-  return `upi://pay?${params.toString()}`;
+  const cleanVpa = vpa.trim();
+  const cleanPayee = payeeName.trim();
+  const cleanAmount = typeof amountRupees === "number" && amountRupees > 0
+    ? amountRupees.toFixed(2)
+    : undefined;
+
+  // Sanitize note: strip URI fragment '#' delimiters, collapse whitespace, max 50 chars
+  const rawNote = note || `Order ${orderNumber}`;
+  const cleanNote = rawNote
+    .replace(/#/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 50);
+
+  // Sanitize transactionRef: max 35 characters, alphanumeric + underscore/hyphen
+  const rawTr = transactionRef || `TXN_${orderNumber}_${Date.now()}`;
+  const cleanTr = rawTr.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 35);
+
+  const parts: string[] = [];
+  parts.push(`pa=${encodeURIComponent(cleanVpa)}`);
+  parts.push(`pn=${encodeURIComponent(cleanPayee)}`);
+  if (cleanAmount) {
+    parts.push(`am=${cleanAmount}`);
+  }
+  parts.push(`cu=INR`);
+  if (cleanNote) {
+    parts.push(`tn=${encodeURIComponent(cleanNote)}`);
+  }
+  if (cleanTr) {
+    parts.push(`tr=${encodeURIComponent(cleanTr)}`);
+  }
+
+  // Handle Merchant Category Code (mc) - only if authentic 4-digit code is provided
+  const configuredMc = mc || process.env.UPI_MCC;
+  const hasValidMc = Boolean(configuredMc && /^\d{4}$/.test(configuredMc.trim()));
+  if (hasValidMc && configuredMc) {
+    parts.push(`mc=${encodeURIComponent(configuredMc.trim())}`);
+  }
+
+  // Under NPCI rules, the url parameter is strictly reserved for verified merchants.
+  // If appended to a personal/non-merchant VPA, Google Pay and bank PSPs reject with:
+  // "Payment not supported for this receiver VPA"
+  const targetUrl = callbackUrl || url;
+  if (targetUrl && (hasValidMc || allowUnverifiedUrl)) {
+    parts.push(`url=${encodeURIComponent(targetUrl.trim())}`);
+  }
+
+  return `upi://pay?${parts.join("&")}`;
 }
 
 /**

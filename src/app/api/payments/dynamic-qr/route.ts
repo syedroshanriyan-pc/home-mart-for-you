@@ -22,14 +22,14 @@ async function getCachedUpiSettings(): Promise<{ vpa: string; payeeName: string 
     const vpaRow = records.find((r) => r.key === "UPI_VPA");
     const nameRow = records.find((r) => r.key === "UPI_MERCHANT_NAME");
 
-    const vpa = vpaRow?.value?.trim() || process.env.UPI_VPA || process.env.NEXT_PUBLIC_UPI_VPA || "merchant@upi";
+    const vpa = vpaRow?.value?.trim() || process.env.UPI_VPA || process.env.NEXT_PUBLIC_UPI_VPA || "syedroshanriyan@okaxis";
     const payeeName = nameRow?.value?.trim() || process.env.NEXT_PUBLIC_UPI_MERCHANT_NAME || "homemart4u";
 
     settingsCache = { vpa, name: payeeName, expiry: now + 60000 };
     return { vpa, payeeName };
   } catch {
     return {
-      vpa: process.env.UPI_VPA || process.env.NEXT_PUBLIC_UPI_VPA || "merchant@upi",
+      vpa: process.env.UPI_VPA || process.env.NEXT_PUBLIC_UPI_VPA || "syedroshanriyan@okaxis",
       payeeName: process.env.NEXT_PUBLIC_UPI_MERCHANT_NAME || "homemart4u",
     };
   }

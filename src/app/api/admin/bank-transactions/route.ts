@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { utr, amountRupees, payeeVpa = process.env.UPI_VPA || "merchant@upi", senderVpa, note } = body;
+    const { utr, amountRupees, payeeVpa = process.env.UPI_VPA || "syedroshanriyan@okaxis", senderVpa, note } = body;
 
     const cleanUtr = String(utr || "").trim();
     if (!cleanUtr || cleanUtr.length !== 12 || !/^\d{12}$/.test(cleanUtr)) {

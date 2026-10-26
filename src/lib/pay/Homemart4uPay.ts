@@ -96,7 +96,7 @@ export class Homemart4uPayEngine {
       const vpa =
         records.find((r) => r.key === "UPI_VPA")?.value?.trim() ||
         process.env.UPI_VPA ||
-        "merchant@upi";
+        "syedroshanriyan@okaxis";
       const payeeName =
         records.find((r) => r.key === "UPI_MERCHANT_NAME")?.value?.trim() ||
         process.env.NEXT_PUBLIC_UPI_MERCHANT_NAME ||
@@ -104,7 +104,7 @@ export class Homemart4uPayEngine {
       return { vpa, payeeName };
     } catch {
       return {
-        vpa: process.env.UPI_VPA || "merchant@upi",
+        vpa: process.env.UPI_VPA || "syedroshanriyan@okaxis",
         payeeName: process.env.NEXT_PUBLIC_UPI_MERCHANT_NAME || "Homemart4u",
       };
     }

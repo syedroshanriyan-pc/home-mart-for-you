@@ -113,12 +113,12 @@ export class DynamicUpiQrPaymentAdapter implements IPaymentAdapter {
       const records = await prisma.systemSetting.findMany({
         where: { key: { in: ["UPI_VPA", "UPI_MERCHANT_NAME"] } },
       });
-      const vpa = records.find((r) => r.key === "UPI_VPA")?.value?.trim() || process.env.UPI_VPA || "merchant@upi";
+      const vpa = records.find((r) => r.key === "UPI_VPA")?.value?.trim() || process.env.UPI_VPA || "syedroshanriyan@okaxis";
       const payeeName = records.find((r) => r.key === "UPI_MERCHANT_NAME")?.value?.trim() || process.env.NEXT_PUBLIC_UPI_MERCHANT_NAME || "Homemart4u";
       return { vpa, payeeName };
     } catch {
       return {
-        vpa: process.env.UPI_VPA || "merchant@upi",
+        vpa: process.env.UPI_VPA || "syedroshanriyan@okaxis",
         payeeName: process.env.NEXT_PUBLIC_UPI_MERCHANT_NAME || "Homemart4u",
       };
     }
@@ -554,7 +554,7 @@ export class DynamicUpiQrPaymentAdapter implements IPaymentAdapter {
       orderNumber,
       expectedAmountMinor,
       expectedCurrency = "INR",
-      payeeVpa = process.env.UPI_VPA || "merchant@upi",
+      payeeVpa = process.env.UPI_VPA || "syedroshanriyan@okaxis",
     } = params;
 
     // 1. Check external payment gateway API if live credentials are configured (Razorpay / Cashfree / PhonePe)

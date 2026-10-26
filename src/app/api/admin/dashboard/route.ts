@@ -27,13 +27,29 @@ export async function GET(req: NextRequest) {
         createdAt: { gte: startOfToday },
         ...activeOrderCondition,
       },
-      select: { totalMinor: true, status: true, placedAt: true, id: true, orderNumber: true },
+      select: {
+        id: true,
+        orderNumber: true,
+        totalMinor: true,
+        status: true,
+        placedAt: true,
+        payment: { select: { method: true, status: true, amountMinor: true } },
+      },
     });
 
-    const todayOrderCount = ordersToday.length;
-    const todaySalesMinor = ordersToday
-      .filter((o) => o.status !== "CANCELLED")
-      .reduce((sum, o) => sum + o.totalMinor, 0);
+    const activeTodayOrders = ordersToday.filter((o) => o.status !== "CANCELLED");
+    const todayOrderCount = activeTodayOrders.length;
+    const todaySalesMinor = activeTodayOrders.reduce((sum, o) => sum + o.totalMinor, 0);
+
+    const todayCodOrders = activeTodayOrders.filter((o) => o.payment?.method === "COD");
+    const todayCodSalesMinor = todayCodOrders.reduce((sum, o) => sum + o.totalMinor, 0);
+    const todayCodOrderCount = todayCodOrders.length;
+
+    const todayOnlineOrders = activeTodayOrders.filter(
+      (o) => o.payment?.method !== "COD" && o.payment?.status === "COMPLETED"
+    );
+    const todayOnlineSalesMinor = todayOnlineOrders.reduce((sum, o) => sum + o.totalMinor, 0);
+    const todayOnlineOrderCount = todayOnlineOrders.length;
 
     const aovMinor = todayOrderCount > 0 ? Math.round(todaySalesMinor / todayOrderCount) : 0;
 
@@ -49,9 +65,25 @@ export async function GET(req: NextRequest) {
     let twoDaysSuccessPayments = 0;
     let twoDaysPendingPayments = 0;
     let twoDaysFailedPayments = 0;
+    let twoDaysCodSalesMinor = 0;
+    let twoDaysOnlineSalesMinor = 0;
+    let twoDaysCodOrderCount = 0;
+    let twoDaysOnlineOrderCount = 0;
 
     past2DaysOrders.forEach((o) => {
       const pStatus = o.payment?.status;
+      const isCod = o.payment?.method === "COD";
+
+      if (o.status !== "CANCELLED") {
+        if (isCod) {
+          twoDaysCodSalesMinor += o.totalMinor;
+          twoDaysCodOrderCount++;
+        } else if (pStatus === "COMPLETED") {
+          twoDaysOnlineSalesMinor += o.totalMinor;
+          twoDaysOnlineOrderCount++;
+        }
+      }
+
       if (pStatus === "COMPLETED") twoDaysSuccessPayments++;
       else if (pStatus === "FAILED") twoDaysFailedPayments++;
       else twoDaysPendingPayments++;
@@ -133,12 +165,20 @@ export async function GET(req: NextRequest) {
       metrics: {
         todaySalesMinor,
         todayOrderCount,
+        todayCodSalesMinor,
+        todayOnlineSalesMinor,
+        todayCodOrderCount,
+        todayOnlineOrderCount,
         aovMinor,
         statusMap,
         past2DaysTotal: past2DaysOrders.length,
         twoDaysSuccessPayments,
         twoDaysPendingPayments,
         twoDaysFailedPayments,
+        twoDaysCodSalesMinor,
+        twoDaysOnlineSalesMinor,
+        twoDaysCodOrderCount,
+        twoDaysOnlineOrderCount,
       },
       alerts: {
         unassignedOrders,

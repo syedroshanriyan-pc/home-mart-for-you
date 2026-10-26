@@ -15,6 +15,8 @@ import {
   PackageX,
   ArrowRight,
   RefreshCw,
+  Banknote,
+  CreditCard,
 } from "lucide-react";
 
 export default function AdminDashboardPage() {
@@ -63,7 +65,7 @@ export default function AdminDashboardPage() {
             Operations Overview
           </h1>
           <p className="text-xs text-charcoal-500 mt-0.5">
-            Real-time sales, order lifecycle statuses, and operational alerts for Mulbagal shop.
+            Real-time sales, order lifecycle statuses, and cash vs online payment reconciliation.
           </p>
         </div>
 
@@ -76,62 +78,94 @@ export default function AdminDashboardPage() {
         </button>
       </div>
 
-      {/* 1. Core KPI Metric Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Today's Sales */}
-        <div className="bg-cream-50 p-5 rounded-2xl border border-cream-200 shadow-subtle space-y-2">
+      {/* 1. Core KPI Metric Cards (With Dedicated COD vs Online Boxes) */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
+        {/* Total Today Sales */}
+        <div className="bg-cream-50 p-4 sm:p-5 rounded-2xl border border-cream-200 shadow-subtle space-y-2">
           <div className="flex items-center justify-between text-charcoal-400">
-            <span className="text-[11px] uppercase font-bold tracking-wider">Today&apos;s Sales</span>
+            <span className="text-[10px] sm:text-[11px] uppercase font-bold tracking-wider">Total Sales</span>
             <DollarSign className="w-4 h-4 text-emerald-600" />
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="font-serif text-2xl sm:text-3xl font-bold text-charcoal-800">
+          <div className="flex items-baseline gap-1">
+            <span className="font-serif text-xl sm:text-2xl font-bold text-charcoal-800">
               ₹{((metrics.todaySalesMinor || 0) / 100).toFixed(0)}
             </span>
           </div>
-          <span className="text-[10px] text-charcoal-400 block">From non-cancelled orders</span>
+          <span className="text-[10px] text-charcoal-400 block truncate">Total today active</span>
+        </div>
+
+        {/* Cash on Delivery (COD) Amount Box */}
+        <div className="bg-amber-50/70 p-4 sm:p-5 rounded-2xl border border-amber-200 shadow-subtle space-y-2">
+          <div className="flex items-center justify-between text-amber-700">
+            <span className="text-[10px] sm:text-[11px] uppercase font-bold tracking-wider">COD Cash Amount</span>
+            <Banknote className="w-4 h-4 text-amber-600" />
+          </div>
+          <div className="flex items-baseline gap-1">
+            <span className="font-serif text-xl sm:text-2xl font-bold text-amber-900">
+              ₹{((metrics.todayCodSalesMinor || 0) / 100).toFixed(0)}
+            </span>
+          </div>
+          <span className="text-[10px] text-amber-700 block truncate font-medium">
+            {metrics.todayCodOrderCount || 0} COD orders to collect
+          </span>
+        </div>
+
+        {/* Online Paid Amount Box */}
+        <div className="bg-emerald-50/70 p-4 sm:p-5 rounded-2xl border border-emerald-200 shadow-subtle space-y-2">
+          <div className="flex items-center justify-between text-emerald-700">
+            <span className="text-[10px] sm:text-[11px] uppercase font-bold tracking-wider">Online Paid Amount</span>
+            <CreditCard className="w-4 h-4 text-emerald-600" />
+          </div>
+          <div className="flex items-baseline gap-1">
+            <span className="font-serif text-xl sm:text-2xl font-bold text-emerald-900">
+              ₹{((metrics.todayOnlineSalesMinor || 0) / 100).toFixed(0)}
+            </span>
+          </div>
+          <span className="text-[10px] text-emerald-700 block truncate font-medium">
+            {metrics.todayOnlineOrderCount || 0} UPI / Bank verified
+          </span>
         </div>
 
         {/* Today's Orders */}
-        <div className="bg-cream-50 p-5 rounded-2xl border border-cream-200 shadow-subtle space-y-2">
+        <div className="bg-cream-50 p-4 sm:p-5 rounded-2xl border border-cream-200 shadow-subtle space-y-2">
           <div className="flex items-center justify-between text-charcoal-400">
-            <span className="text-[11px] uppercase font-bold tracking-wider">Orders Today</span>
+            <span className="text-[10px] sm:text-[11px] uppercase font-bold tracking-wider">Orders Today</span>
             <ShoppingBag className="w-4 h-4 text-amberGold-600" />
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="font-serif text-2xl sm:text-3xl font-bold text-charcoal-800">
+          <div className="flex items-baseline gap-1">
+            <span className="font-serif text-xl sm:text-2xl font-bold text-charcoal-800">
               {metrics.todayOrderCount || 0}
             </span>
           </div>
-          <span className="text-[10px] text-charcoal-400 block">Total volume placed</span>
+          <span className="text-[10px] text-charcoal-400 block truncate">Total orders placed</span>
         </div>
 
         {/* Average Order Value (AOV) */}
-        <div className="bg-cream-50 p-5 rounded-2xl border border-cream-200 shadow-subtle space-y-2">
+        <div className="bg-cream-50 p-4 sm:p-5 rounded-2xl border border-cream-200 shadow-subtle space-y-2">
           <div className="flex items-center justify-between text-charcoal-400">
-            <span className="text-[11px] uppercase font-bold tracking-wider">Average Order Value</span>
+            <span className="text-[10px] sm:text-[11px] uppercase font-bold tracking-wider">Average Order</span>
             <TrendingUp className="w-4 h-4 text-blue-600" />
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="font-serif text-2xl sm:text-3xl font-bold text-charcoal-800">
+          <div className="flex items-baseline gap-1">
+            <span className="font-serif text-xl sm:text-2xl font-bold text-charcoal-800">
               ₹{((metrics.aovMinor || 0) / 100).toFixed(0)}
             </span>
           </div>
-          <span className="text-[10px] text-charcoal-400 block">Per order average</span>
+          <span className="text-[10px] text-charcoal-400 block truncate">Avg ticket size</span>
         </div>
 
         {/* Target 20-min Delivery */}
-        <div className="bg-cream-50 p-5 rounded-2xl border border-cream-200 shadow-subtle space-y-2">
+        <div className="bg-cream-50 p-4 sm:p-5 rounded-2xl border border-cream-200 shadow-subtle space-y-2">
           <div className="flex items-center justify-between text-charcoal-400">
-            <span className="text-[11px] uppercase font-bold tracking-wider">Target Window</span>
+            <span className="text-[10px] sm:text-[11px] uppercase font-bold tracking-wider">Target Window</span>
             <Clock className="w-4 h-4 text-purple-600" />
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="font-serif text-2xl sm:text-3xl font-bold text-charcoal-800">
+          <div className="flex items-baseline gap-1">
+            <span className="font-serif text-xl sm:text-2xl font-bold text-charcoal-800">
               ~20 Min
             </span>
           </div>
-          <span className="text-[10px] text-charcoal-400 block">Mulbagal standard</span>
+          <span className="text-[10px] text-charcoal-400 block truncate">Mulbagal standard</span>
         </div>
       </div>
 

@@ -199,3 +199,42 @@ test("PHASE 6 & 7: Online Payment Verification, Webhook Security & Idempotency",
     assert.ok(webhookRoute.includes("payloadCurrency"), "Must verify currency is INR");
   });
 });
+
+test("ADMIN: Dashboard Separate COD & Online Sales Boxes + Delivery Agent CRUD", async (t) => {
+  await t.test("Admin dashboard route calculates todayCodSalesMinor and todayOnlineSalesMinor separately", () => {
+    const routeCode = fs.readFileSync(path.join(rootDir, "src/app/api/admin/dashboard/route.ts"), "utf-8");
+    assert.ok(routeCode.includes("todayCodSalesMinor"), "Dashboard must compute todayCodSalesMinor");
+    assert.ok(routeCode.includes("todayOnlineSalesMinor"), "Dashboard must compute todayOnlineSalesMinor");
+    assert.ok(routeCode.includes("todayCodOrderCount"), "Dashboard must count todayCodOrderCount");
+    assert.ok(routeCode.includes("todayOnlineOrderCount"), "Dashboard must count todayOnlineOrderCount");
+  });
+
+  await t.test("Admin dashboard page renders separate cards for COD and Online sales", () => {
+    const pageCode = fs.readFileSync(path.join(rootDir, "src/app/admin/page.tsx"), "utf-8");
+    assert.ok(pageCode.includes("COD Cash Amount"), "Dashboard page must render COD Cash Amount card");
+    assert.ok(pageCode.includes("Online Paid Amount"), "Dashboard page must render Online Paid Amount card");
+    assert.ok(pageCode.includes("todayCodSalesMinor"), "Dashboard page must bind todayCodSalesMinor");
+    assert.ok(pageCode.includes("todayOnlineSalesMinor"), "Dashboard page must bind todayOnlineSalesMinor");
+  });
+
+  await t.test("Delivery agent [id] API route supports full GET, PUT (Edit), and DELETE operations", () => {
+    const agentRoutePath = path.join(rootDir, "src/app/api/admin/delivery-agents/[id]/route.ts");
+    assert.ok(fs.existsSync(agentRoutePath), "API route /api/admin/delivery-agents/[id]/route.ts must exist");
+    const routeCode = fs.readFileSync(agentRoutePath, "utf-8");
+
+    assert.ok(routeCode.includes("export async function GET"), "Must export GET handler");
+    assert.ok(routeCode.includes("export async function PUT"), "Must export PUT handler for editing agent");
+    assert.ok(routeCode.includes("export async function DELETE"), "Must export DELETE handler for deleting agent");
+    assert.ok(routeCode.includes("DELIVERY_AGENT_UPDATED"), "Must log audit log on update");
+    assert.ok(routeCode.includes("DELIVERY_AGENT_DELETED"), "Must log audit log on delete");
+    assert.ok(routeCode.includes("assignedDeliveries"), "Must check for active assigned runs before deletion");
+  });
+
+  await t.test("Admin delivery page provides Add, Edit, Delete, and Shift duty toggle controls", () => {
+    const pageCode = fs.readFileSync(path.join(rootDir, "src/app/admin/delivery/page.tsx"), "utf-8");
+    assert.ok(pageCode.includes("openEditModal"), "Must have edit modal trigger");
+    assert.ok(pageCode.includes("openDeleteModal"), "Must have delete modal trigger");
+    assert.ok(pageCode.includes("toggleDutyStatus"), "Must have shift duty toggle");
+    assert.ok(pageCode.includes("handleConfirmDelete"), "Must have delete confirmation handler");
+  });
+});

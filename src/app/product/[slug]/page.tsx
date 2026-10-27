@@ -10,12 +10,17 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const product = await prisma.product.findUnique({
-    where: { slug },
-    include: { variants: true },
-  });
+  let product = null;
+  try {
+    product = await prisma.product.findUnique({
+      where: { slug },
+      include: { variants: true },
+    });
+  } catch (err) {
+    console.warn("Product metadata query fallback:", err);
+  }
 
-  if (!product) return { title: "Product Not Found | homemart4u" };
+  if (!product) return { title: "Product | homemart4u" };
 
   const minPrice = product.variants[0]?.priceMinor ? product.variants[0].priceMinor / 100 : 0;
 
@@ -38,23 +43,28 @@ export default async function ProductDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  let product = null;
 
-  const product = await prisma.product.findUnique({
-    where: { slug },
-    include: {
-      category: true,
-      variants: { orderBy: { priceMinor: "asc" } },
-      customizationGroups: {
-        orderBy: { displayOrder: "asc" },
-        include: {
-          options: {
-            where: { isActive: true },
-            orderBy: { displayOrder: "asc" },
+  try {
+    product = await prisma.product.findUnique({
+      where: { slug },
+      include: {
+        category: true,
+        variants: { orderBy: { priceMinor: "asc" } },
+        customizationGroups: {
+          orderBy: { displayOrder: "asc" },
+          include: {
+            options: {
+              where: { isActive: true },
+              orderBy: { displayOrder: "asc" },
+            },
           },
         },
       },
-    },
-  });
+    });
+  } catch (err) {
+    console.warn("Product detail query fallback:", err);
+  }
 
   if (!product || !product.isActive) {
     notFound();

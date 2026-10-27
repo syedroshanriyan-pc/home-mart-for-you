@@ -12,30 +12,40 @@ export default async function CategoryPage({
 }) {
   const { category: categorySlug } = await params;
 
-  const currentCategory = await prisma.category.findUnique({
-    where: { slug: categorySlug },
-  });
+  let currentCategory = null;
+  let categories: any[] = [];
+  let products: any[] = [];
+
+  try {
+    currentCategory = await prisma.category.findUnique({
+      where: { slug: categorySlug },
+    });
+
+    if (currentCategory) {
+      categories = await prisma.category.findMany({
+        where: { isActive: true },
+        orderBy: { displayOrder: "asc" },
+      });
+
+      products = await prisma.product.findMany({
+        where: { isActive: true },
+        orderBy: { displayOrder: "asc" },
+        include: {
+          category: { select: { name: true, slug: true } },
+          variants: { where: { isAvailable: true }, orderBy: { priceMinor: "asc" } },
+          customizationGroups: {
+            include: { options: { where: { isActive: true } } },
+          },
+        },
+      });
+    }
+  } catch (err) {
+    console.warn("Build-time category page query fallback:", err);
+  }
 
   if (!currentCategory) {
     notFound();
   }
-
-  const categories = await prisma.category.findMany({
-    where: { isActive: true },
-    orderBy: { displayOrder: "asc" },
-  });
-
-  const products = await prisma.product.findMany({
-    where: { isActive: true },
-    orderBy: { displayOrder: "asc" },
-    include: {
-      category: { select: { name: true, slug: true } },
-      variants: { where: { isAvailable: true }, orderBy: { priceMinor: "asc" } },
-      customizationGroups: {
-        include: { options: { where: { isActive: true } } },
-      },
-    },
-  });
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">

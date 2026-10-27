@@ -4,8 +4,9 @@ services:
     runtime: node
     plan: starter
     region: singapore
-    buildCommand: npm install && npx prisma generate && npm run build
+    buildCommand: npm install && npm run build
     startCommand: npm run start
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production

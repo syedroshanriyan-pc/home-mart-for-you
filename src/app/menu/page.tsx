@@ -10,22 +10,29 @@ export const metadata = {
 };
 
 export default async function MenuPage() {
-  const categories = await prisma.category.findMany({
-    where: { isActive: true },
-    orderBy: { displayOrder: "asc" },
-  });
+  let categories: any[] = [];
+  let products: any[] = [];
 
-  const products = await prisma.product.findMany({
-    where: { isActive: true },
-    orderBy: { displayOrder: "asc" },
-    include: {
-      category: { select: { id: true, name: true, slug: true, department: true } },
-      variants: { where: { isAvailable: true }, orderBy: { priceMinor: "asc" } },
-      customizationGroups: {
-        include: { options: { where: { isActive: true } } },
+  try {
+    categories = await prisma.category.findMany({
+      where: { isActive: true },
+      orderBy: { displayOrder: "asc" },
+    });
+
+    products = await prisma.product.findMany({
+      where: { isActive: true },
+      orderBy: { displayOrder: "asc" },
+      include: {
+        category: { select: { id: true, name: true, slug: true, department: true } },
+        variants: { where: { isAvailable: true }, orderBy: { priceMinor: "asc" } },
+        customizationGroups: {
+          include: { options: { where: { isActive: true } } },
+        },
       },
-    },
-  });
+    });
+  } catch (err) {
+    console.warn("Build-time menu page catalog query fallback:", err);
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">

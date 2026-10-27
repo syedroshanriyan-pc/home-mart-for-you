@@ -10,10 +10,15 @@ export const metadata = {
 };
 
 export default async function OffersPage() {
-  const coupons = await prisma.coupon.findMany({
-    where: { isActive: true },
-    orderBy: { createdAt: "desc" },
-  });
+  let coupons: any[] = [];
+  try {
+    coupons = await prisma.coupon.findMany({
+      where: { isActive: true },
+      orderBy: { createdAt: "desc" },
+    });
+  } catch (err) {
+    console.warn("Build-time offers query fallback:", err);
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">

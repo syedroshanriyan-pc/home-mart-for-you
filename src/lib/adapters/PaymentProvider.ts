@@ -682,15 +682,14 @@ export class DynamicUpiQrPaymentAdapter implements IPaymentAdapter {
       };
     }
 
-    // Security Gate: In production without bank ledger entry or gateway API, transaction must be held for reconciliation
+    // Security Gate: Authoritative verification requires authentic bank ledger match or gateway confirmation.
+    // ORDER_SIMULATION_ENABLED is strictly audited; live customer UTR submissions are held for reconciliation.
     const isSimulation = process.env.ORDER_SIMULATION_ENABLED === "true";
-    if (isSimulation) {
+    if (isSimulation && process.env.NODE_ENV === "test") {
       return {
-        verified: true,
-        status: "SUCCESS" as const,
-        providerReference: utr,
-        amountMinor: expectedAmountMinor,
-        currency: "INR",
+        verified: false,
+        status: "REQUIRES_RECONCILIATION" as const,
+        failureReason: `Transaction reference (${utr}) received and pending bank verification.`,
         source: "USER_LIVE_PAYMENT" as const,
       };
     }
@@ -698,7 +697,7 @@ export class DynamicUpiQrPaymentAdapter implements IPaymentAdapter {
     return {
       verified: false,
       status: "REQUIRES_RECONCILIATION" as const,
-      failureReason: `Transaction reference (${utr}) received and pending bank settlement. Your order is safely held for reconciliation without duplicate charging.`,
+      failureReason: `Transaction reference (${utr}) received and pending bank verification. Your order is safely held for reconciliation without duplicate charging.`,
       source: "USER_LIVE_PAYMENT" as const,
     };
   }

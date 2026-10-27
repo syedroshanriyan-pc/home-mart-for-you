@@ -14,6 +14,7 @@ import { autoAssignDeliveryPartner } from "@/lib/delivery-assignment";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limiter";
 import { sanitizeText, sanitizeAddress } from "@/lib/security";
 import { allocateUniqueOrderNumber, generateCollisionResistantOrderNumber } from "@/lib/order-number";
+import { sendWhatsAppOrderSummary } from "@/lib/whatsapp";
 import { Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
@@ -545,6 +546,15 @@ export async function POST(req: NextRequest) {
         recipientName: session.name,
         recipientPhone: session.mobile,
         metadata: { totalMinor },
+      }),
+      sendWhatsAppOrderSummary({
+        id: newOrder.id,
+        orderNumber: newOrder.orderNumber,
+        user: { mobile: session.mobile, name: session.name },
+        items: newOrder.items,
+        totalMinor: newOrder.totalMinor,
+        paymentMethod: newOrder.payment?.method || paymentMethod,
+        payment: newOrder.payment,
       }),
       autoAssignDeliveryPartner(newOrder.id),
     ]).catch((err) => console.warn("Background notification/assignment error:", err));

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
+import { sendWhatsAppPaymentConfirmation } from "@/lib/whatsapp";
 
 export async function POST(req: NextRequest) {
   try {
@@ -102,7 +103,13 @@ export async function POST(req: NextRequest) {
           txnRef ? { providerReference: txnRef } : undefined,
         ].filter(Boolean) as any,
       },
-      include: { order: true },
+      include: {
+        order: {
+          include: {
+            user: { select: { id: true, name: true, mobile: true } },
+          },
+        },
+      },
     });
 
     if (!payment) {
@@ -244,6 +251,44 @@ export async function POST(req: NextRequest) {
 
       return p;
     });
+
+    // Record webhook event for idempotency and audit
+    try {
+      await (prisma as any).paymentWebhookEvent.create({
+        data: {
+          eventId: txnRef ? `wh_${txnRef}_${targetStatus}` : `wh_${Date.now()}`,
+          provider: gateway || "GATEWAY_WEBHOOK",
+          eventType: event || (isSuccess ? "PAYMENT_SUCCESS" : "PAYMENT_FAILURE"),
+          providerTxnRef: txnRef || null,
+          processingState: "PROCESSED",
+          processingOutcome: `Payment status marked ${targetStatus}`,
+          deduplicationKey: txnRef ? `dedup_${txnRef}` : undefined,
+          payloadJson: rawBody.slice(0, 4000),
+        },
+      });
+    } catch (e: any) {
+      console.warn("[WEBHOOK_EVENT_DEDUP_SKIPPED]", e.message);
+    }
+
+    // Trigger WhatsApp Payment Confirmation notification to customer
+    if (isSuccess && payment.order?.user?.mobile) {
+      try {
+        await sendWhatsAppPaymentConfirmation(
+          {
+            id: payment.order.id,
+            orderNumber: payment.order.orderNumber,
+            user: payment.order.user,
+          },
+          {
+            amountRupees: payment.amountMinor / 100,
+            upiTxnRef: txnRef || undefined,
+            confirmedAt: new Date(),
+          }
+        );
+      } catch (notifErr) {
+        console.warn("[WHATSAPP_CONFIRMATION_NOTICE_SKIPPED]", notifErr);
+      }
+    }
 
     return NextResponse.json({
       received: true,

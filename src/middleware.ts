@@ -82,7 +82,8 @@ export async function middleware(req: NextRequest) {
   if (
     pathname.startsWith("/api/") &&
     ["POST", "PUT", "PATCH", "DELETE"].includes(req.method) &&
-    !pathname.startsWith("/api/payments/webhook") // Webhooks use HMAC signature verification
+    !pathname.startsWith("/api/payments/webhook") && // Signature verified
+    !pathname.startsWith("/api/whatsapp/webhook") // Signature verified via HMAC-SHA256
   ) {
     if (origin) {
       if (!isAllowedOrigin) {

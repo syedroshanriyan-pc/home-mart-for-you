@@ -29,6 +29,7 @@ model User {
   assignedDeliveries         DeliveryAssignment[]       @relation("AgentDeliveries")
   couponRedemptions          CouponRedemption[]
   auditLogs                  AuditLog[]                 @relation("ActorAuditLogs")
+  deliveryCollections        DeliveryCollection[]       @relation("AgentDeliveryCollections")
 }
 
 model Address {
@@ -176,6 +177,9 @@ model Order {
   deliveryAssignment DeliveryAssignment?
   review             Review?
   couponRedemptions  CouponRedemption[]
+  paymentAttempts    PaymentAttempt[]
+  deliveryCollection DeliveryCollection?
+  whatsAppMessages   WhatsAppMessage[]
 
   @@index([userId, status])
   @@index([createdAt])
@@ -378,5 +382,91 @@ model BankTransaction {
 
   @@index([utr])
   @@index([status])
+}
+
+model PaymentAttempt {
+  id                String    @id @default(cuid())
+  orderId           String
+  provider          String    @default("HOMEMART4U_PAY") // HOMEMART4U_PAY, BANK_GATEWAY, etc.
+  providerReference String?   // Unique session ID or bank reference
+  idempotencyKey    String?   @unique
+  amountMinor       Int       // Exact amount in paise
+  currency          String    @default("INR")
+  status            String    @default("PENDING") // PENDING, PENDING_VERIFICATION, PAID, FAILED, EXPIRED, CANCELLED, REVERSED, REFUNDED
+  qrPayload         String?   // Dynamic UPI URI string
+  expiresAt         DateTime?
+  confirmedAt       DateTime?
+  failureReason     String?
+  initiatedBy       String    @default("CUSTOMER") // CUSTOMER, DELIVERY_AGENT, ADMIN
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([status])
+  @@index([providerReference])
+}
+
+model PaymentWebhookEvent {
+  id                 String   @id @default(cuid())
+  eventId            String?  @unique
+  provider           String   // HOMEMART4U_PAY, BANK, WHATSAPP, etc.
+  eventType          String
+  providerTxnRef     String?
+  processingState    String   @default("PENDING") // PENDING, PROCESSED, FAILED, DUPLICATE, IGNORED
+  processingOutcome  String?
+  deduplicationKey   String?  @unique
+  payloadJson        String
+  receivedAt         DateTime @default(now())
+  createdAt          DateTime @default(now())
+
+  @@index([provider, eventType])
+  @@index([processingState])
+}
+
+model DeliveryCollection {
+  id                 String    @id @default(cuid())
+  orderId            String    @unique
+  agentUserId        String
+  collectionMethod   String    // CASH, ONLINE_DOORSTEP
+  amountMinor        Int       // In paise
+  paymentAttemptId   String?
+  verificationStatus String    @default("VERIFIED") // VERIFIED, PENDING_RECONCILIATION, RECONCILED
+  collectedAt        DateTime  @default(now())
+  reconciledAt       DateTime?
+  reconciledByUserId String?
+  notes              String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  agent User  @relation("AgentDeliveryCollections", fields: [agentUserId], references: [id])
+
+  @@index([agentUserId])
+  @@index([collectionMethod])
+  @@index([verificationStatus])
+}
+
+model WhatsAppMessage {
+  id                String    @id @default(cuid())
+  orderId           String?
+  recipientPhone    String
+  templateName      String?
+  messageType       String    // ORDER_SUMMARY, PAYMENT_REQUEST, PAYMENT_CONFIRMATION, DELIVERY_STATUS, TEXT
+  status            String    @default("QUEUED") // QUEUED, SENT, DELIVERED, READ, FAILED
+  providerMessageId String?   @unique
+  errorDetails      String?
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  readAt            DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([status])
+  @@index([recipientPhone])
 }
 

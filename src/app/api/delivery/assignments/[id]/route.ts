@@ -25,6 +25,11 @@ export async function GET(
             user: { select: { name: true, mobile: true } },
             items: true,
             payment: true,
+            deliveryCollection: true,
+            paymentAttempts: {
+              orderBy: { createdAt: "desc" },
+              take: 1,
+            },
           },
         },
       },

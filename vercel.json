@@ -1,4 +1,0 @@
-{
-  "framework": "nextjs",
-  "buildCommand": "npx prisma generate && npx next build"
-}
